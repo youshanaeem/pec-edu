@@ -1457,33 +1457,83 @@ let STATE = {
   timetable: [] // {id, day, start, end, teacher, subject, batch} — weekly class schedule (Administrator)
 };
 
-function loadState(){
+// Shared secret sent with every API call — see README for how this is set.
+// (This offers basic protection against random internet traffic hitting the
+// API, but it is visible to anyone who views this page's source, same as
+// any other client-side credential. It is not a substitute for real
+// server-side user authentication.)
+const APP_API_KEY = 'pec2026SecretKey987xyz';
+
+function applyParsedState(parsed){
+  STATE.students = parsed.students || [];
+  STATE.subjects = parsed.subjects || [];
+  STATE.marks = parsed.marks || [];
+  STATE.attendance = parsed.attendance || [];
+  STATE.marksHistory = parsed.marksHistory || [];
+  STATE.marksHistoryMigrated = parsed.marksHistoryMigrated || false;
+  STATE.courseProgress = parsed.courseProgress || [];
+  STATE.courseProgressMeta = parsed.courseProgressMeta || {cls:'', year:'', month:''};
+  STATE.timetable = parsed.timetable || [];
+}
+
+function loadStateFromLocalStorage(){
   try{
     const raw = localStorage.getItem(STORAGE_KEY);
     if(raw){
-      const parsed = JSON.parse(raw);
-      STATE.students = parsed.students || [];
-      STATE.subjects = parsed.subjects || [];
-      STATE.marks = parsed.marks || [];
-      STATE.attendance = parsed.attendance || [];
-      STATE.marksHistory = parsed.marksHistory || [];
-      STATE.marksHistoryMigrated = parsed.marksHistoryMigrated || false;
-      STATE.courseProgress = parsed.courseProgress || [];
-      STATE.courseProgressMeta = parsed.courseProgressMeta || {cls:'', year:'', month:''};
-      STATE.timetable = parsed.timetable || [];
+      applyParsedState(JSON.parse(raw));
     }
   }catch(e){
-    console.error('Data load error:', e);
+    console.error('Local data load error:', e);
   }
 }
 
+async function loadState(){
+  // Try the Neon-backed database first; fall back to localStorage if the
+  // network/API is unavailable (e.g. offline), so the app keeps working.
+  try{
+    const res = await fetch('/api/state', {
+      headers: { 'x-api-key': APP_API_KEY }
+    });
+    if(!res.ok) throw new Error('API responded with ' + res.status);
+    const json = await res.json();
+    if(json.data){
+      applyParsedState(json.data);
+      // keep a local cache in sync too
+      try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(STATE)); }catch(e){}
+      return;
+    }
+    // no row yet on the server — fall back to whatever's local
+    loadStateFromLocalStorage();
+  }catch(e){
+    console.error('DB load error, falling back to localStorage:', e);
+    loadStateFromLocalStorage();
+  }
+}
+
+let _saveTimer = null;
 function saveState(){
+  // Always save locally immediately (fast, works offline).
   try{
     localStorage.setItem(STORAGE_KEY, JSON.stringify(STATE));
   }catch(e){
-    console.error('Data save error:', e);
+    console.error('Local data save error:', e);
     alert('Could not save data. Browser storage might be full.');
   }
+
+  // Debounce pushes to the database so rapid edits don't fire a request each.
+  clearTimeout(_saveTimer);
+  _saveTimer = setTimeout(function(){
+    fetch('/api/state', {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': APP_API_KEY
+      },
+      body: JSON.stringify(STATE)
+    }).catch(function(e){
+      console.error('DB save error (data is still safe in localStorage):', e);
+    });
+  }, 500);
 }
 
 function uid(prefix){
@@ -4004,8 +4054,8 @@ if(timetableDownloadPdfBtn){
 /* ============================================================
    INIT
    ============================================================ */
-function init(){
-  loadState();
+async function init(){
+  await loadState(); // waits for Neon DB fetch (falls back to localStorage if offline)
   migrateMarksToHistory();
   renderStudentList();
   renderSubjectList();
@@ -4026,35 +4076,5 @@ function init(){
 }
 init();
 </script>
-
-
-
-
-
-async function loadStudentsFromDB() {
-  const { data, error } = await supabase
-    .from("students")
-    .select("*")
-    .order("created_at");
-
-  if (error) {
-    console.error(error);
-    return;
-  }
-
-  STATE.students = data.map(s => ({
-    id: s.id,
-    name: s.name,
-    roll: s.roll_no,
-    cls: s.class,
-    photo: s.photo || ""
-  }));
-
-  renderStudentList();
-  refreshMarksDropdowns();
-  refreshReportDropdown();
-  refreshOverviewDropdowns();
-}
-
 </body>
 </html>
