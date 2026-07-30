@@ -166,6 +166,35 @@ body{
   border-radius:20px;
 }
 .role-badge.visible{ display:inline-block; }
+
+/* ---------- Mobile menu toggle (hamburger) — hidden on desktop ---------- */
+.menu-toggle{
+  display:none;
+  align-items:center;
+  justify-content:center;
+  width:34px;height:34px;
+  background:rgba(255,255,255,0.10);
+  border:1px solid rgba(255,255,255,0.25);
+  color:var(--on-navy);
+  border-radius:8px;
+  cursor:pointer;
+  font-size:18px;
+  flex-shrink:0;
+  padding:0;
+}
+.menu-toggle:hover{ background:rgba(255,255,255,0.18); }
+
+/* ---------- Sidebar overlay backdrop (mobile drawer) ---------- */
+.sidebar-overlay{
+  display:none;
+  position:fixed;
+  top:var(--topbar-h);
+  left:0; right:0; bottom:0;
+  background:rgba(0,0,0,0.45);
+  z-index:40;
+}
+.sidebar-overlay.visible{ display:block; }
+
 @media(max-width:640px){
   .top-bar{ padding:8px 12px; font-size:13px; gap:8px; }
   .top-bar-logo{ height:26px; }
@@ -342,21 +371,30 @@ body{
   white-space:nowrap;
 }
 @media(max-width:900px){
-  .app-shell{ flex-direction:column; min-height:auto; }
+  .menu-toggle{ display:flex; }
+  .app-shell{ min-height:auto; }
   .sidebar{
-    position:static;
-    width:100%;
-    height:auto;
-    flex-direction:row;
-    align-items:center;
+    position:fixed;
+    top:var(--topbar-h);
+    left:0;
+    width:78%;
+    max-width:300px;
+    height:calc(100vh - var(--topbar-h));
     border-right:none;
-    border-bottom:4px solid var(--amber);
-    overflow-y:visible;
+    box-shadow:2px 0 18px rgba(0,0,0,0.35);
+    transform:translateX(-100%);
+    transition:transform .25s ease;
+    z-index:50;
   }
-  .sidebar .brand{ border-bottom:none; padding:16px; }
-  .tab-nav{ flex-direction:row; overflow-x:auto; padding:8px 12px; }
-  .tab-btn{ border-left:none; border-bottom:3px solid transparent; border-radius:0; }
-  .tab-btn.active{ border-left-color:transparent; border-bottom-color:var(--amber); background:transparent; }
+  .sidebar.mobile-open{ transform:translateX(0); }
+  /* On mobile the sidebar is a full-height drawer, so the icon-only
+     "collapsed" state (used on desktop for wide tables) doesn't apply. */
+  .sidebar.collapsed{ width:78%; max-width:300px; }
+  .sidebar.collapsed .brand > div:last-child{ display:block; }
+  .sidebar.collapsed .tab-nav{ padding:14px 12px; gap:2px; }
+  .sidebar.collapsed .tab-btn{ padding:12px 14px; border-radius:6px; text-align:left; font-size:13.5px; }
+  .sidebar.collapsed .tab-btn .num{ font-size:11px; margin-right:8px; display:inline; }
+  .main-content{ width:100%; }
 }
 .section{
   display:none;
@@ -794,6 +832,7 @@ select#reportStudentSelect, select#rankSortSelect{ margin-bottom:0; }
     <span class="role-badge" id="roleBadge"></span>
   </div>
   <div class="top-bar-actions">
+    <button type="button" class="menu-toggle" id="mobileMenuToggle" aria-label="Open menu" aria-expanded="false">☰</button>
     <a class="home-link" href="index.html" aria-label="Back to Access Panels"><span class="icon">⌂</span><span class="label">Access Panels</span></a>
     <button type="button" class="theme-toggle" id="themeToggleBtn" onclick="toggleTheme()" aria-label="Toggle dark mode">
       <span class="icon" id="themeToggleIcon">🌙</span>
@@ -803,6 +842,8 @@ select#reportStudentSelect, select#rankSortSelect{ margin-bottom:0; }
 </header>
 
 <div class="app-shell">
+
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
 
 <!-- ============================================================
      SIDEBAR — brand + vertical nav
@@ -1647,6 +1688,31 @@ if(allowedTabs){
 
 const WIDE_TABS = ['tab-subjects', 'tab-timetable'];
 
+// ---------- Mobile drawer (hamburger menu) ----------
+const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+const sidebarOverlay = document.getElementById('sidebarOverlay');
+const sidebarEl = document.querySelector('.sidebar');
+
+function openMobileDrawer(){
+  sidebarEl.classList.add('mobile-open');
+  sidebarOverlay.classList.add('visible');
+  if(mobileMenuToggle) mobileMenuToggle.setAttribute('aria-expanded', 'true');
+}
+function closeMobileDrawer(){
+  sidebarEl.classList.remove('mobile-open');
+  sidebarOverlay.classList.remove('visible');
+  if(mobileMenuToggle) mobileMenuToggle.setAttribute('aria-expanded', 'false');
+}
+if(mobileMenuToggle){
+  mobileMenuToggle.addEventListener('click', ()=>{
+    if(sidebarEl.classList.contains('mobile-open')) closeMobileDrawer();
+    else openMobileDrawer();
+  });
+}
+if(sidebarOverlay){
+  sidebarOverlay.addEventListener('click', closeMobileDrawer);
+}
+
 document.querySelectorAll('.tab-btn').forEach(btn=>{
   btn.addEventListener('click', ()=>{
     document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
@@ -1655,14 +1721,19 @@ document.querySelectorAll('.tab-btn').forEach(btn=>{
     const activeSection = document.getElementById(btn.dataset.tab);
     activeSection.classList.add('active');
 
+    // Close the mobile drawer as soon as a section is chosen
+    closeMobileDrawer();
+
     // Collapse sidebar + expand section when a wide-content tab is open
-    // (Subjects pivot table, Timetable grid)
+    // (Subjects pivot table, Timetable grid) — desktop only; on mobile the
+    // sidebar is an off-canvas drawer so this doesn't apply.
     const sidebar = document.querySelector('.sidebar');
-    if(WIDE_TABS.includes(btn.dataset.tab)){
+    if(WIDE_TABS.includes(btn.dataset.tab) && window.innerWidth > 900){
       sidebar.classList.add('collapsed');
       activeSection.classList.add('full-width-section');
     } else {
       sidebar.classList.remove('collapsed');
+      if(WIDE_TABS.includes(btn.dataset.tab)) activeSection.classList.add('full-width-section');
     }
 
     // Refresh the relevant view whenever a tab is opened
