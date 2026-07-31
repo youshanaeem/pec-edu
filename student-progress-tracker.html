@@ -38,6 +38,8 @@
   --scrollbar-thumb:#D8D2C2;
   --navy:#1B2A4A;
   --on-navy:#F7F5EF;
+  --late:#3B6EA5;
+  --late-soft:#DCE7F2;
 }
 
 /* ---------- Dark theme overrides ---------- */
@@ -60,6 +62,8 @@ html[data-theme="dark"]{
   --badge-flat-bg:#262C3A;
   --tag-text:#E8A33D;
   --scrollbar-thumb:#3A4257;
+  --late:#6FA0D6;
+  --late-soft:#1E2A3A;
 }
 
 *{box-sizing:border-box;}
@@ -234,6 +238,7 @@ body{
 .monthly-att-table td.att-present{ background:var(--chalk-green); color:#fff; }
 .monthly-att-table td.att-absent{ background:var(--coral); color:#fff; }
 .monthly-att-table td.att-leave{ background:var(--amber); color:var(--navy); }
+.monthly-att-table td.att-late{ background:var(--late); color:#fff; }
 .monthly-att-table td.att-sunday{ background:var(--line); color:var(--muted); }
 .monthly-att-table td.att-empty{ background:var(--paper-card); color:var(--line); }
 .monthly-att-table th.sunday-col{ background:var(--line); }
@@ -525,6 +530,8 @@ input:focus, select:focus{
 .btn-outline:hover{ border-color:var(--ink-soft); }
 .btn-danger{ background:var(--coral-soft); color:var(--coral); }
 .btn-danger:hover{ filter:brightness(0.97); }
+.btn-late{ background:var(--late-soft); color:var(--late); }
+.btn-late:hover{ filter:brightness(0.97); }
 .btn-sm{ padding:6px 11px; font-size:12px; border-radius:6px; }
 
 /* ---------- Lists / Tables ---------- */
@@ -929,7 +936,8 @@ select#reportStudentSelect, select#rankSortSelect{ margin-bottom:0; }
 #cbEditToggleBtn.cb-edit-active,
 #cpEditToggleBtn.cb-edit-active,
 #marksEditToggleBtn.cb-edit-active,
-#reportEditToggleBtn.cb-edit-active{
+#reportEditToggleBtn.cb-edit-active,
+#yttEditToggleBtn.cb-edit-active{
   background:var(--chalk-green);
   border-color:var(--chalk-green);
   color:#fff;
@@ -957,7 +965,7 @@ select#reportStudentSelect, select#rankSortSelect{ margin-bottom:0; }
   </div>
   <div class="top-bar-actions">
     <button type="button" class="menu-toggle" id="mobileMenuToggle" aria-label="Open menu" aria-expanded="false">☰</button>
-    <a class="home-link" href="file:///C:/Users/Yousha/Downloads/index.html" aria-label="Back to Access Panels"><span class="icon">⌂</span><span class="label">Access Panels</span></a>
+    <a class="home-link" href="index.html" aria-label="Back to Access Panels"><span class="icon">⌂</span><span class="label">Access Panels</span></a>
     <button type="button" class="theme-toggle" id="themeToggleBtn" onclick="toggleTheme()" aria-label="Toggle dark mode">
       <span class="icon" id="themeToggleIcon">🌙</span>
       <span class="label" id="themeToggleLabel">Dark Mode</span>
@@ -1144,8 +1152,11 @@ select#reportStudentSelect, select#rankSortSelect{ margin-bottom:0; }
   </div>
 
   <div class="card" id="yearlyAssessmentCard" style="margin-top:20px;">
-    <h3><span class="dot" style="background:var(--amber);"></span>📅 Yearly Assessment Schedule</h3>
-    <p class="section-sub" style="margin-bottom:14px;">Edit months, papers, days, dates, and result dates directly in the table below — changes save automatically. Use the buttons to add/remove rows or subjects, or export the schedule as a CSV.</p>
+    <h3 style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+      <span class="dot" style="background:var(--amber);"></span>📅 Yearly Assessment Schedule
+      <button type="button" class="btn btn-outline btn-sm" id="yttEditToggleBtn" style="margin-left:auto;">✏️ Edit</button>
+    </h3>
+    <p class="section-sub" style="margin-bottom:14px;">Click "Edit" to change months, papers, days, dates, and result dates directly in the table below — changes save automatically. Use the buttons to add/remove rows or subjects, or export the schedule as a CSV.</p>
 
     <div class="field-row" style="margin-bottom:4px;">
       <div>
@@ -1216,9 +1227,11 @@ select#reportStudentSelect, select#rankSortSelect{ margin-bottom:0; }
     </div>
 
     <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:16px; align-items:center;">
-      <button type="button" class="btn btn-outline" id="yttAddRowBtn">+ Add Assessment Row</button>
-      <button type="button" class="btn btn-outline" id="yttAddLabelBtn">+ Add Section Label</button>
-      <button type="button" class="btn btn-outline" id="yttAddSubjectBtn">+ Add Subject Column</button>
+      <span id="yttAddButtonsWrap" style="display:none; gap:10px; flex-wrap:wrap;">
+        <button type="button" class="btn btn-outline" id="yttAddRowBtn">+ Add Assessment Row</button>
+        <button type="button" class="btn btn-outline" id="yttAddLabelBtn">+ Add Section Label</button>
+        <button type="button" class="btn btn-outline" id="yttAddSubjectBtn">+ Add Subject Column</button>
+      </span>
       <button type="button" class="btn btn-outline" id="yttDownloadCsvBtn" style="margin-left:auto;">⬇ Download CSV (plain data)</button>
       <button type="button" class="btn" id="yttDownloadExcelBtn">⬇ Download Excel (formatted, with borders)</button>
     </div>
@@ -1882,10 +1895,11 @@ select#reportStudentSelect, select#rankSortSelect{ margin-bottom:0; }
             <th>Present</th>
             <th>Absent</th>
             <th>Leave</th>
+            <th>Late</th>
             <th>Attendance %</th>
           </tr>
         </thead>
-        <tbody id="attendanceSummaryBody"><tr><td colspan="5" class="empty-state">No attendance records yet</td></tr></tbody>
+        <tbody id="attendanceSummaryBody"><tr><td colspan="6" class="empty-state">No attendance records yet</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -1903,7 +1917,7 @@ select#reportStudentSelect, select#rankSortSelect{ margin-bottom:0; }
       <button type="button" class="btn btn-outline btn-sm" id="downloadSampleMonthlyAttendanceBtn" style="margin-top:4px;">⬇ Download Sample CSV</button>
       <details style="margin-top:12px;">
         <summary style="cursor:pointer; font-size:12.5px; font-weight:700; color:var(--ink-soft);">📋 Required format</summary>
-        <p class="hint" style="margin-top:10px;">One row per student. First two columns are <b>Student Name</b> and <b>Roll Number</b>, followed by one column per day of the month (headed <b>1, 2, 3 … </b>up to the last day). Each cell holds that day's status: <b>P</b> (Present), <b>A</b> (Absent), or <b>L</b> (Leave) — leave a cell blank for no record. Sunday columns can be left blank or marked <b>H</b>; they're always shown as holidays regardless. The file is applied to whichever month is selected below.</p>
+        <p class="hint" style="margin-top:10px;">One row per student. First two columns are <b>Student Name</b> and <b>Roll Number</b>, followed by one column per day of the month (headed <b>1, 2, 3 … </b>up to the last day). Each cell holds that day's status: <b>P</b> (Present), <b>A</b> (Absent), <b>L</b> (Leave), or <b>T</b> (Late) — leave a cell blank for no record. Sunday columns can be left blank or marked <b>H</b>; they're always shown as holidays regardless. The file is applied to whichever month is selected below.</p>
         <div style="overflow-x:auto; margin-top:8px;">
           <table>
             <thead><tr>
@@ -2151,7 +2165,7 @@ let STATE = {
   students: [],     // {id, name, roll, cls, photo}
   subjects: [],     // {id, name, teacher, max, teacherJunior, teacherSenior}
   marks: [],        // {id, studentId, subjectId, prev, current}
-  attendance: [],   // {id, studentId, date, status: 'present'|'absent'|'leave'}
+  attendance: [],   // {id, studentId, date, status: 'present'|'absent'|'leave'|'late'}
   marksHistory: [], // {id, studentId, subjectId, month:'YYYY-MM', value}
   marksHistoryMigrated: false, // one-time flag: have we copied old prev/current marks into marksHistory?
   courseProgress: [], // {subjectId, completed, inprogress, total} — chapter-wise progress per subject
@@ -3881,6 +3895,7 @@ function renderAttendanceMarking(){
         <button class="btn btn-sm ${status==='present'?'btn-primary':'btn-outline'}" onclick="markAttendance('${s.id}','present')">Present</button>
         <button class="btn btn-sm ${status==='absent'?'btn-danger':'btn-outline'}" onclick="markAttendance('${s.id}','absent')">Absent</button>
         <button class="btn btn-sm ${status==='leave'?'btn-amber':'btn-outline'}" onclick="markAttendance('${s.id}','leave')">Leave</button>
+        <button class="btn btn-sm ${status==='late'?'btn-late':'btn-outline'}" onclick="markAttendance('${s.id}','late')">Late</button>
       </td>
     </tr>`;
   });
@@ -3891,7 +3906,7 @@ function renderAttendanceMarking(){
 function renderAttendanceSummary(){
   const body = document.getElementById('attendanceSummaryBody');
   if(STATE.students.length===0 || STATE.attendance.length===0){
-    body.innerHTML = '<tr><td colspan="5" class="empty-state">No attendance records yet</td></tr>';
+    body.innerHTML = '<tr><td colspan="6" class="empty-state">No attendance records yet</td></tr>';
     return;
   }
   let html = '';
@@ -3901,6 +3916,7 @@ function renderAttendanceSummary(){
     const present = records.filter(r=>r.status==='present').length;
     const absent = records.filter(r=>r.status==='absent').length;
     const leave = records.filter(r=>r.status==='leave').length;
+    const late = records.filter(r=>r.status==='late').length;
     const total = records.length;
     const pct = total>0 ? ((present/total)*100).toFixed(1)+'%' : '—';
     html += `<tr>
@@ -3908,10 +3924,11 @@ function renderAttendanceSummary(){
       <td class="num-cell">${present}</td>
       <td class="num-cell">${absent}</td>
       <td class="num-cell">${leave}</td>
+      <td class="num-cell">${late}</td>
       <td class="num-cell">${pct}</td>
     </tr>`;
   });
-  body.innerHTML = html || '<tr><td colspan="5" class="empty-state">No attendance records yet</td></tr>';
+  body.innerHTML = html || '<tr><td colspan="6" class="empty-state">No attendance records yet</td></tr>';
 }
 
 // ---- Attendance CSV import ----
@@ -3927,6 +3944,7 @@ function normalizeAttendanceStatus(v){
   if(s==='present' || s==='p') return 'present';
   if(s==='absent' || s==='a') return 'absent';
   if(s==='leave' || s==='l') return 'leave';
+  if(s==='late' || s==='t') return 'late';
   return null;
 }
 
@@ -4016,6 +4034,10 @@ const monthlyAttendanceMonthInput = document.getElementById('monthlyAttendanceMo
 monthlyAttendanceMonthInput.value = currentCalendarMonth();
 monthlyAttendanceMonthInput.addEventListener('change', renderMonthlyAttendance);
 
+// Explicit letter codes for the monthly grid — can't just take the first
+// letter of the status name since Leave and Late would both be 'L'.
+const ATTENDANCE_STATUS_LETTERS = { present:'P', absent:'A', leave:'L', late:'T' };
+
 function renderMonthlyAttendance(){
   const wrap = document.getElementById('monthlyAttendanceWrap');
   if(STATE.students.length===0){
@@ -4048,7 +4070,7 @@ function renderMonthlyAttendance(){
       if(!record){
         html += `<td class="att-cell att-empty">-</td>`;
       }else{
-        const letter = record.status.charAt(0).toUpperCase();
+        const letter = ATTENDANCE_STATUS_LETTERS[record.status] || record.status.charAt(0).toUpperCase();
         html += `<td class="att-cell att-${record.status}" title="${record.status.charAt(0).toUpperCase()+record.status.slice(1)}">${letter}</td>`;
       }
     });
@@ -5603,6 +5625,36 @@ if(timetableDownloadPdfBtn){
    YEARLY ASSESSMENT SCHEDULE (Students tab — Campus Incharge only,
    since Admin/Academia panels don't have the Students tab at all)
    ============================================================ */
+let yttEditMode = false; // locked by default — must click "Edit" to type into the Yearly Assessment Schedule
+
+function updateYttEditToggleBtn(){
+  const btn = document.getElementById('yttEditToggleBtn');
+  if(!btn) return;
+  if(yttEditMode){
+    btn.textContent = '🔓 Editing — click to lock';
+    btn.classList.add('cb-edit-active');
+  }else{
+    btn.textContent = '✏️ Edit';
+    btn.classList.remove('cb-edit-active');
+  }
+  const addBtnsWrap = document.getElementById('yttAddButtonsWrap');
+  if(addBtnsWrap) addBtnsWrap.style.display = yttEditMode ? 'flex' : 'none';
+}
+
+// Locks/unlocks every input and delete (✕) button inside the Yearly
+// Assessment card to match yttEditMode. Called after every render, since
+// the table body/subject headers are rebuilt from scratch each time.
+function applyYttEditMode(){
+  const card = document.getElementById('yearlyAssessmentCard');
+  if(!card) return;
+  card.querySelectorAll('.ytt-input').forEach(el=>{ el.readOnly = !yttEditMode; });
+  card.querySelectorAll('.ytt-del').forEach(el=>{ el.style.display = yttEditMode ? '' : 'none'; });
+  ['yttTitle','yttSubtitle','yttNote'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.readOnly = !yttEditMode;
+  });
+}
+
 function renderYearlyAssessment(){
   const ya = STATE.yearlyAssessment;
   if(!ya) return;
@@ -5646,7 +5698,16 @@ function renderYearlyAssessment(){
       <td><button type="button" class="ytt-del" data-ri="${ri}" title="Delete row">✕</button></td>
     </tr>`;
   }).join('');
+
+  applyYttEditMode();
 }
+
+const yttEditToggleBtn = document.getElementById('yttEditToggleBtn');
+if(yttEditToggleBtn) yttEditToggleBtn.addEventListener('click', ()=>{
+  yttEditMode = !yttEditMode;
+  updateYttEditToggleBtn();
+  applyYttEditMode();
+});
 
 // Header title / subtitle / footer note
 const yttTitleInput = document.getElementById('yttTitle');
