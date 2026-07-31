@@ -788,9 +788,9 @@ select#reportStudentSelect, select#rankSortSelect{ margin-bottom:0; }
 .tt-c3{ background:var(--amber); color:var(--navy); }
 .tt-c4{ background:#5C3D8C; }
 .tt-c5{ background:#2F6E7A; }
-.tt-draggable{ cursor:grab; }
+.tt-draggable{ cursor:grab; touch-action:none; user-select:none; }
 .tt-draggable:active{ cursor:grabbing; }
-.tt-block.tt-dragging{ opacity:0.4; }
+.tt-block.tt-dragging{ opacity:0.92; box-shadow:0 8px 22px rgba(0,0,0,0.35); }
 .tt-day-col.tt-drop-hover{ background:rgba(232,163,61,0.14); }
 #printArea .tt-grid, #printArea .tt-grid *{
   -webkit-print-color-adjust:exact !important;
@@ -5442,56 +5442,124 @@ function minutesToHHMM(mins){
   return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0');
 }
 
+// Displays a stored 24-hour "HH:MM" value as a plain 12-hour label
+// (e.g. "18:00" -> "6:00") for the timetable grid. Internal storage,
+// CSV import/export, and the add/edit form all keep using 24-hour time —
+// only the on-screen grid display is converted.
+function formatTT12(hhmm){
+  if(!hhmm) return '';
+  const parts = hhmm.split(':');
+  let h = parseInt(parts[0],10);
+  const m = parts[1];
+  if(isNaN(h)) return hhmm;
+  let h12 = h % 12;
+  if(h12 === 0) h12 = 12;
+  return h12+':'+m;
+}
+
 // Lets a teacher/admin drag a class block to a new day and/or time slot
 // instead of using the edit form — the entry keeps its original duration,
 // snapped to the nearest 5 minutes and clamped to the 6PM-9PM window.
+//
+// This uses plain pointer events (not the native HTML5 drag-and-drop API)
+// so the block being dragged is always positioned by us, in JS, and can be
+// clamped to stay fully inside the timetable grid's own border — it can
+// never float off past the grid lines the way a native drag-ghost can.
 function wireTimetableDragDrop(wrap){
   if(!ttTimetableEditable()) return;
 
-  let grabOffsetY = 0;
+  const bodyRow = wrap.querySelector('.tt-body-row');
+  const dayCols = Array.from(wrap.querySelectorAll('.tt-day-col'));
+  if(!bodyRow || dayCols.length===0) return;
 
-  wrap.querySelectorAll('.tt-block[draggable="true"]').forEach(block=>{
-    block.addEventListener('dragstart', function(ev){
-      const rect = block.getBoundingClientRect();
-      grabOffsetY = ev.clientY - rect.top;
-      ev.dataTransfer.setData('text/plain', block.dataset.id);
-      ev.dataTransfer.effectAllowed = 'move';
-      block.classList.add('tt-dragging');
-    });
-    block.addEventListener('dragend', function(){
-      block.classList.remove('tt-dragging');
-    });
-  });
+  function clamp(v, min, max){ return Math.max(min, Math.min(v, max)); }
 
-  wrap.querySelectorAll('.tt-day-col').forEach(col=>{
-    col.addEventListener('dragover', function(ev){
+  wrap.querySelectorAll('.tt-block.tt-draggable').forEach(block=>{
+    block.addEventListener('pointerdown', function(ev){
+      if(ev.button !== undefined && ev.button !== 0) return; // left click / touch only
       ev.preventDefault();
-      ev.dataTransfer.dropEffect = 'move';
-      col.classList.add('tt-drop-hover');
-    });
-    col.addEventListener('dragleave', function(){
-      col.classList.remove('tt-drop-hover');
-    });
-    col.addEventListener('drop', function(ev){
-      ev.preventDefault();
-      col.classList.remove('tt-drop-hover');
-      const id = ev.dataTransfer.getData('text/plain');
+
+      const id = block.dataset.id;
       const entry = STATE.timetable.find(x=>x.id===id);
       if(!entry) return;
 
-      const rect = col.getBoundingClientRect();
-      const offsetY = (ev.clientY - rect.top) - grabOffsetY;
+      const blockRect = block.getBoundingClientRect();
+      const grabOffsetX = ev.clientX - blockRect.left;
+      const grabOffsetY = ev.clientY - blockRect.top;
+      const blockW = blockRect.width;
+      const blockH = blockRect.height;
       const duration = ttTimeToMinutes(entry.end) - ttTimeToMinutes(entry.start);
 
-      let newStart = TT_START_MIN + Math.round((offsetY/TT_PX_PER_MIN)/5)*5;
-      newStart = Math.max(TT_START_MIN, Math.min(newStart, TT_END_MIN-duration));
+      let currentHoverCol = block.closest('.tt-day-col');
+      let finalCol = currentHoverCol;
+      let finalStart = ttTimeToMinutes(entry.start);
+      let moved = false;
 
-      entry.day = col.dataset.day;
-      entry.start = minutesToHHMM(newStart);
-      entry.end = minutesToHHMM(newStart+duration);
+      block.classList.add('tt-dragging');
+      block.style.position = 'fixed';
+      block.style.zIndex = 60;
+      block.style.width = blockW+'px';
+      block.style.height = blockH+'px';
+      block.style.left = blockRect.left+'px';
+      block.style.top = blockRect.top+'px';
+      block.style.margin = '0';
+      try{ block.setPointerCapture(ev.pointerId); }catch(e){}
 
-      saveState();
-      renderTimetable();
+      function onMove(mv){
+        moved = true;
+        const bRect = bodyRow.getBoundingClientRect();
+
+        // Keep the block's box fully within the grid body's own border —
+        // this is what stops it from ever poking outside the slot lines.
+        let left = clamp(mv.clientX - grabOffsetX, bRect.left, bRect.right - blockW);
+        let top  = clamp(mv.clientY - grabOffsetY, bRect.top, bRect.bottom - blockH);
+
+        block.style.left = left+'px';
+        block.style.top = top+'px';
+
+        const centerX = left + blockW/2;
+        let hoverCol = dayCols.find(c=>{
+          const r = c.getBoundingClientRect();
+          return centerX >= r.left && centerX < r.right;
+        }) || currentHoverCol;
+
+        if(hoverCol !== currentHoverCol){
+          currentHoverCol.classList.remove('tt-drop-hover');
+          hoverCol.classList.add('tt-drop-hover');
+          currentHoverCol = hoverCol;
+        }
+        finalCol = hoverCol;
+
+        const relY = top - bRect.top;
+        let newStart = TT_START_MIN + Math.round((relY/TT_PX_PER_MIN)/5)*5;
+        finalStart = clamp(newStart, TT_START_MIN, TT_END_MIN-duration);
+      }
+
+      function onUp(){
+        document.removeEventListener('pointermove', onMove);
+        document.removeEventListener('pointerup', onUp);
+        currentHoverCol.classList.remove('tt-drop-hover');
+
+        block.classList.remove('tt-dragging');
+        block.style.position = '';
+        block.style.zIndex = '';
+        block.style.width = '';
+        block.style.height = '';
+        block.style.left = '';
+        block.style.top = '';
+        block.style.margin = '';
+
+        if(moved){
+          entry.day = finalCol.dataset.day;
+          entry.start = minutesToHHMM(finalStart);
+          entry.end = minutesToHHMM(finalStart+duration);
+          saveState();
+        }
+        renderTimetable();
+      }
+
+      document.addEventListener('pointermove', onMove);
+      document.addEventListener('pointerup', onUp);
     });
   });
 }
@@ -5511,7 +5579,7 @@ function renderTimetable(){
     html += `<div class="tt-body-row" style="height:${totalH}px;"><div class="tt-time-col">`;
     for(let t=TT_START_MIN; t<=TT_END_MIN; t+=60){
       const top = Math.round((t-TT_START_MIN)*TT_PX_PER_MIN);
-      const label = String(Math.floor(t/60)).padStart(2,'0')+':00';
+      const label = formatTT12(minutesToHHMM(t));
       html += `<div class="tt-time-label" style="top:${top}px;">${label}</div>`;
     }
     html += '</div>';
@@ -5537,9 +5605,9 @@ function renderTimetable(){
         const h = Math.max(Math.round((e.en-e.s)*TT_PX_PER_MIN), 20);
         const widthPct = 100/e.cols;
         const leftPct = e.col*widthPct;
-        const dragAttrs = ttTimetableEditable() ? `draggable="true" data-id="${e.id}"` : '';
+        const dragAttrs = ttTimetableEditable() ? `data-id="${e.id}"` : '';
         html += `<div class="tt-block ${color}${ttTimetableEditable() ? ' tt-draggable' : ''}" ${dragAttrs} style="top:${top}px; height:${h}px; left:calc(${leftPct}% + 2px); width:calc(${widthPct}% - 4px);">
-          <div class="tt-block-time">${escapeHtml(e.start)} - ${escapeHtml(e.end)}</div>
+          <div class="tt-block-time">${formatTT12(e.start)} - ${formatTT12(e.end)}</div>
           <div class="tt-block-teacher">${escapeHtml(e.teacher)}</div>
           <div class="tt-block-subject">${escapeHtml(e.subject)}</div>
           <div class="tt-block-batch">${escapeHtml(e.batch)}</div>
@@ -5563,7 +5631,7 @@ function renderTimetable(){
       listWrap.innerHTML = sorted.map(e=>`
         <tr>
           <td>${escapeHtml(e.day)}</td>
-          <td>${escapeHtml(e.start)} - ${escapeHtml(e.end)}</td>
+          <td>${formatTT12(e.start)} - ${formatTT12(e.end)}</td>
           <td>${escapeHtml(e.teacher)}</td>
           <td>${escapeHtml(e.subject)}</td>
           <td>${escapeHtml(e.batch)}</td>
