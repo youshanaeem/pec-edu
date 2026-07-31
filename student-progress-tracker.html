@@ -823,7 +823,28 @@ select#reportStudentSelect, select#rankSortSelect{ margin-bottom:0; }
      padding keeps every column readable even with many subjects. */
   #printArea table{ width:100%; border-collapse:collapse; table-layout:fixed; }
   #printArea th, #printArea td{ border:1px solid #999; padding:3px 4px; font-size:9px; text-align:left; word-wrap:break-word; overflow-wrap:break-word; }
+  /* Exam papers print portrait (named page), overriding the default
+     landscape @page above — assigned via the .paper-print-doc class. */
+  @page paperPrintPage{ size: portrait; margin: 12mm; }
+  #printArea .paper-print-doc{ page: paperPrintPage; font-family:'Inter',Arial,sans-serif; }
+  #printArea .paper-print-doc table{ table-layout:auto; }
+  #printArea .paper-print-doc th, #printArea .paper-print-doc td{ font-size:12px; }
 }
+/* ---------- Papers builder ---------- */
+.paper-section-card{ border:1px solid var(--line); border-radius:var(--radius); padding:14px; margin-bottom:16px; background:var(--input-bg); }
+.paper-section-card .field-row{ align-items:flex-end; }
+.paper-q-card{ border:1px solid var(--line); border-radius:8px; padding:12px; margin-top:12px; background:var(--paper-card); }
+.paper-q-head{ display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:8px; }
+.paper-q-head select{ width:auto; margin:0; }
+.paper-mcq-options{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px; }
+.paper-mcq-options input{ margin:0; }
+.paper-img-box{ border:2px dashed var(--line); border-radius:8px; padding:10px; margin-top:10px; text-align:center; color:var(--muted); font-size:12px; min-height:44px; cursor:text; }
+.paper-img-box img{ max-width:100%; max-height:220px; display:block; margin:6px auto 0; border-radius:6px; }
+.paper-ocr-box{ border:2px dashed var(--chalk-green); border-radius:8px; padding:10px; margin-top:8px; text-align:center; color:var(--muted); font-size:12px; min-height:40px; cursor:text; }
+.paper-ocr-box img{ max-width:100%; max-height:180px; display:block; margin:6px auto 0; border-radius:6px; }
+.paper-img-row{ display:flex; gap:10px; align-items:center; margin-top:8px; flex-wrap:wrap; }
+.paper-img-row input[type="file"]{ width:auto; margin:0; }
+
 /* ---------- Yearly Assessment Schedule (editable table, Students tab) ---------- */
 .ytt-table{
   border-collapse:collapse;
@@ -943,6 +964,10 @@ select#reportStudentSelect, select#rankSortSelect{ margin-bottom:0; }
   color:#fff;
 }
 </style>
+<!-- OCR library used by the Papers section to extract text from photographed/
+     scanned question images. Loaded deferred so it doesn't block page load;
+     needs an internet connection the first time it's used. -->
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js" defer=""></script>
 </head>
 <body>
 <script>
@@ -999,6 +1024,7 @@ select#reportStudentSelect, select#rankSortSelect{ margin-bottom:0; }
     <button class="tab-btn" data-tab="tab-coursebreakup"><span class="num">07</span>Course Breakup</button>
     <button class="tab-btn" data-tab="tab-attendance"><span class="num">08</span>Attendance</button>
     <button class="tab-btn" data-tab="tab-timetable"><span class="num">09</span>Timetable</button>
+    <button class="tab-btn" data-tab="tab-papers"><span class="num">10</span>Papers</button>
   </nav>
 </aside>
 
@@ -2037,6 +2063,63 @@ select#reportStudentSelect, select#rankSortSelect{ margin-bottom:0; }
   </div>
 </div>
 
+<div id="tab-papers" class="section">
+  <div class="section-title">Question Papers</div>
+  <p class="section-sub">Build a subject-wise paper — add sections, MCQs and short/long questions, paste or upload diagrams, then print or save as PDF in the standard letterhead format.</p>
+
+  <div class="grid-2" id="papersManageGrid">
+    <div class="card">
+      <h3><span class="dot"></span>Paper Details</h3>
+      <form id="paperMetaForm">
+        <input type="hidden" id="paperEditId">
+        <label for="paperInstitute">Institute Name</label>
+        <input type="text" id="paperInstitute" placeholder="e.g. PROGRESSIVE EDUCATION CENTRE" value="PROGRESSIVE EDUCATION CENTRE">
+        <label>Logo (shown top-left when printing)</label>
+        <div id="paperLogoPreviewWrap" style="margin:8px 0 4px;"><img id="paperLogoPreview" style="max-height:60px;border:1px solid var(--line);border-radius:6px;padding:4px;" src="data:image/png;base64,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"></div>
+        <label for="paperSubject">Subject</label>
+        <input type="text" id="paperSubject" list="paperSubjectList" placeholder="e.g. Chemistry-X" required="">
+        <datalist id="paperSubjectList"></datalist>
+        <label for="paperClass">Class</label>
+        <input type="text" id="paperClass" placeholder="e.g. X">
+        <div class="field-row">
+          <div>
+            <label for="paperDuration">Duration</label>
+            <input type="text" id="paperDuration" placeholder="e.g. 60 Minutes">
+          </div>
+          <div>
+            <label for="paperTotalMarks">Total Marks</label>
+            <input type="number" id="paperTotalMarks" placeholder="e.g. 30">
+          </div>
+        </div>
+        <label for="paperDate">Date</label>
+        <input type="date" id="paperDate">
+        <button type="submit" class="btn btn-primary" id="paperSaveBtn">Save Paper</button>
+        <button type="button" class="btn btn-outline" id="paperNewBtn">+ New Paper</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <h3><span class="dot"></span>All Papers</h3>
+      <div style="overflow-x:auto;">
+        <table>
+          <thead><tr><th>Subject</th><th>Date</th><th>Marks</th><th></th></tr></thead>
+          <tbody id="paperListWrap"><tr><td colspan="4" class="empty-state">No papers yet</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:20px;" id="paperBuilderCard">
+    <h3><span class="dot"></span>Sections &amp; Questions</h3>
+    <p class="hint">Paste MCQs and questions directly from Word/PDF/Google Docs into the text boxes below. For a diagram-based question, paste an image (Ctrl+V) into its image box, or use "Upload Image".</p>
+    <div id="paperSectionsWrap"></div>
+    <button type="button" class="btn btn-outline" id="paperAddSectionBtn" style="margin-top:10px;">+ Add Section</button>
+    <div class="tt-toolbar" style="margin-top:20px;">
+      <button type="button" class="btn btn-primary" id="paperPrintBtn">🖨️ Download / Print PDF</button>
+    </div>
+  </div>
+</div>
+
 <!-- ============================================================
      SECTION 9: COURSE BREAKUP — Academia / Campus Incharge panel only.
      One tab per subject, each with a fully editable table (matching
@@ -2175,7 +2258,9 @@ let STATE = {
   courseBreakup: defaultCourseBreakup(), // {chemistry:[...], computer:[...], pst:[...], english:[...], maths:[...], physics:[...], sindhi:[...]} — Course Breakup (Academia / Campus Incharge)
   courseBreakupMeta: {cls:'', year:''}, // {cls, year} shown in the Course Breakup print/download heading
   teacherNamesSwapped: false, // one-time flag: have Junior/Senior teacher names already been swapped back to correct?
-  defaultTeacherNamesCorrected: false // one-time flag: have the 7 core subjects' auto-filled Junior/Senior names (which were backwards) been corrected?
+  defaultTeacherNamesCorrected: false, // one-time flag: have the 7 core subjects' auto-filled Junior/Senior names (which were backwards) been corrected?
+  papers: [], // {id, subject, cls, title, duration, totalMarks, date, instituteName, sections:[{id,label,instruction,marksLabel,questions:[{id,type,text,options:[],marks,image,imagePos}]}]}
+  paperLogo: document.querySelector('.top-bar-logo') ? document.querySelector('.top-bar-logo').src : '' // base64 dataURL of the institute logo, printed top-left on every paper
 };
 
 // Shared secret sent with every API call — see README for how this is set.
@@ -2200,6 +2285,8 @@ function applyParsedState(parsed){
   STATE.courseBreakupMeta = parsed.courseBreakupMeta || {cls:'', year:''};
   STATE.teacherNamesSwapped = parsed.teacherNamesSwapped || false;
   STATE.defaultTeacherNamesCorrected = parsed.defaultTeacherNamesCorrected || false;
+  STATE.papers = parsed.papers || [];
+  STATE.paperLogo = parsed.paperLogo || (document.querySelector('.top-bar-logo') ? document.querySelector('.top-bar-logo').src : '');
 }
 
 function loadStateFromLocalStorage(){
@@ -2379,20 +2466,21 @@ document.getElementById('resetAllDataBtn').addEventListener('click', function(){
    ============================================================ */
 let adminUnlocked = true;
 
-/* ---------- Role-based access (Administrator / Academia / Campus Incharge) ----------
+/* ---------- Role-based access (Administrator / Academia / Campus Incharge / Teachers) ----------
    Reached via index.html, which links here with a ?role= query parameter.
    Each role sees only the sections relevant to it; Campus Incharge sees everything. */
 const ROLE_TABS = {
   admin:     ['tab-attendance','tab-timetable'],
   academia:  ['tab-courseprogress','tab-timetable','tab-coursebreakup'],
-  incharge:  ['tab-students','tab-subjects','tab-report','tab-ranking','tab-overview','tab-courseprogress','tab-attendance','tab-timetable','tab-coursebreakup']
+  incharge:  ['tab-students','tab-subjects','tab-report','tab-ranking','tab-overview','tab-courseprogress','tab-attendance','tab-timetable','tab-coursebreakup','tab-papers'],
+  teachers:  ['tab-timetable','tab-papers']
 };
 const roleParam = new URLSearchParams(window.location.search).get('role');
 const allowedTabs = ROLE_TABS[roleParam] || null;
 
 // Let the user know which panel they're in — shown for Administrator and
 // Academia (scoped roles); Campus Incharge has full access so it's omitted.
-const ROLE_LABELS = { admin: 'Administrator Panel', academia: 'Academia Panel' };
+const ROLE_LABELS = { admin: 'Administrator Panel', academia: 'Academia Panel', teachers: 'Teachers Panel' };
 if(ROLE_LABELS[roleParam]){
   const roleBadge = document.getElementById('roleBadge');
   if(roleBadge){
@@ -2415,7 +2503,7 @@ if(allowedTabs){
   // Admin and Academia see a scoped subset of sections, so their sidebar
   // numbers are renumbered 01, 02... within that subset (Campus Incharge /
   // full access keeps the original numbering across all sections).
-  if(roleParam === 'admin' || roleParam === 'academia'){
+  if(roleParam === 'admin' || roleParam === 'academia' || roleParam === 'teachers'){
     let visibleCount = 0;
     document.querySelectorAll('.tab-btn').forEach(btn=>{
       if(allowedTabs.includes(btn.dataset.tab)){
@@ -2438,9 +2526,9 @@ if(allowedTabs){
     }
   }
 
-  // Administrator gets a view-only Timetable: no bulk import, no add/edit
-  // form, no per-row edit/delete — just the weekly grid and downloads.
-  if(roleParam === 'admin'){
+  // Administrator and Teachers get a view-only Timetable: no bulk import,
+  // no add/edit form, no per-row edit/delete — just the weekly grid and downloads.
+  if(roleParam === 'admin' || roleParam === 'teachers'){
     const bulkImportCard = document.getElementById('timetableBulkImportCard');
     if(bulkImportCard) bulkImportCard.style.display = 'none';
     const manageGrid = document.getElementById('timetableManageGrid');
@@ -5876,6 +5964,517 @@ if(yttDownloadExcelBtn) yttDownloadExcelBtn.addEventListener('click', ()=>{
 });
 
 /* ============================================================
+   SECTION 10: PAPERS — build & print subject question papers
+   ============================================================ */
+const paperSectionsWrap = document.getElementById('paperSectionsWrap');
+const paperMetaForm = document.getElementById('paperMetaForm');
+const paperEditId = document.getElementById('paperEditId');
+const paperListWrap = document.getElementById('paperListWrap');
+
+function paperQuestionCardHtml(type, q){
+  q = q || {};
+  const qid = q.id || uid('pq');
+  const isMcq = type === 'mcq';
+  const opts = q.options || ['', '', '', ''];
+  const imgHtml = q.image
+    ? `<img src="${q.image}" alt="question image">`
+    : 'Click here and paste an image (Ctrl+V), or use "Upload Image" below';
+  return `<div class="paper-q-card" data-qid="${qid}" data-qtype="${type}">
+    <div class="paper-q-head">
+      <b>${isMcq ? 'MCQ' : 'Question'}</b>
+      <button type="button" class="btn btn-outline btn-sm" data-action="del-question">🗑️ Remove</button>
+    </div>
+    <textarea class="paper-q-text" rows="2" placeholder="Paste or type the ${isMcq ? 'MCQ question' : 'question (put numbered sub-parts on new lines if needed)'} here">${escapeHtml(q.text || '')}</textarea>
+    ${isMcq ? `<div class="paper-mcq-options">
+      <input type="text" class="paper-opt" data-opt="0" placeholder="Option A" value="${escapeHtml(opts[0]||'')}">
+      <input type="text" class="paper-opt" data-opt="1" placeholder="Option B" value="${escapeHtml(opts[1]||'')}">
+      <input type="text" class="paper-opt" data-opt="2" placeholder="Option C" value="${escapeHtml(opts[2]||'')}">
+      <input type="text" class="paper-opt" data-opt="3" placeholder="Option D" value="${escapeHtml(opts[3]||'')}">
+    </div>` : ''}
+    <div class="paper-img-box" tabindex="0">${imgHtml}</div>
+    <div class="paper-img-row">
+      <label style="margin:0;font-weight:400;font-size:12px;" for="">Upload Image</label>
+      <input type="file" class="paper-img-file" accept="image/*">
+      <button type="button" class="btn btn-outline btn-sm" data-action="clear-image">Remove Image</button>
+      <select class="paper-img-pos" style="width:auto;margin:0;">
+        <option value="below" ${(!q.imagePos || q.imagePos==='below') ? 'selected' : ''}>Image below question</option>
+        <option value="side" ${q.imagePos==='side' ? 'selected' : ''}>Image beside question</option>
+      </select>
+    </div>
+    <div class="paper-img-row" style="margin-top:6px;">
+      <label style="margin:0;font-weight:400;font-size:12px;">📷 Question is a photo/screenshot? Paste (Ctrl+V) or upload it here to auto-fill the text below</label>
+    </div>
+    <div class="paper-ocr-box" tabindex="0">Click here and paste (Ctrl+V) a photo of the question, or use "Upload" below</div>
+    <div class="paper-img-row">
+      <input type="file" class="paper-ocr-file" accept="image/*">
+      <span class="paper-ocr-status hint" style="margin:0;"></span>
+    </div>
+  </div>`;
+}
+
+function paperSectionCardHtml(sec){
+  sec = sec || {};
+  const sid = sec.id || uid('psec');
+  const questionsHtml = (sec.questions || []).map(q => paperQuestionCardHtml(q.type, q)).join('');
+  return `<div class="paper-section-card" data-sid="${sid}">
+    <div class="field-row">
+      <div>
+        <label>Section Label</label>
+        <input type="text" class="paper-sec-label" value="${escapeHtml(sec.label || 'Section A')}">
+      </div>
+      <div>
+        <label>Marks Box (e.g. 10 Marks)</label>
+        <input type="text" class="paper-sec-marks" value="${escapeHtml(sec.marksLabel || '10 Marks')}">
+      </div>
+    </div>
+    <label>Instruction</label>
+    <input type="text" class="paper-sec-instruction" value="${escapeHtml(sec.instruction || 'Attempt all questions from this section. All questions carry equal marks.')}">
+    <div class="paper-q-list">${questionsHtml}</div>
+    <div class="paper-img-row" style="margin-top:12px;">
+      <button type="button" class="btn btn-outline btn-sm" data-action="add-mcq">+ Add MCQ</button>
+      <button type="button" class="btn btn-outline btn-sm" data-action="add-question">+ Add Short/Long Question</button>
+      <button type="button" class="btn btn-outline btn-sm" style="border-color:var(--coral);color:var(--coral);margin-left:auto;" data-action="del-section">🗑️ Remove Section</button>
+    </div>
+  </div>`;
+}
+
+function renderPaperSections(sections){
+  paperSectionsWrap.innerHTML = (sections && sections.length)
+    ? sections.map(paperSectionCardHtml).join('')
+    : '';
+}
+
+function resetPaperBuilder(){
+  paperMetaForm.reset();
+  document.getElementById('paperInstitute').value = 'PROGRESSIVE EDUCATION CENTRE';
+  paperEditId.value = '';
+  renderPaperSections([{id: uid('psec'), label: 'Section A', instruction: 'Attempt all questions from this section. All questions carry equal marks.', marksLabel: '10 Marks', questions: []}]);
+}
+
+function refreshPaperLogoPreview(){
+  // logo is always the site logo — nothing to refresh
+}
+
+
+
+function fileToDataUrlPaper(file, cb){
+  const reader = new FileReader();
+  reader.onload = () => cb(reader.result);
+  reader.readAsDataURL(file);
+}
+
+// Click delegation: add/remove sections & questions, clear image
+paperSectionsWrap.addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-action]');
+  if(!btn) return;
+  const action = btn.dataset.action;
+  const secCard = btn.closest('.paper-section-card');
+  if(action === 'add-mcq' || action === 'add-question'){
+    secCard.querySelector('.paper-q-list').insertAdjacentHTML('beforeend', paperQuestionCardHtml(action === 'add-mcq' ? 'mcq' : 'short'));
+  } else if(action === 'del-question'){
+    btn.closest('.paper-q-card').remove();
+  } else if(action === 'del-section'){
+    if(confirm('Remove this whole section and its questions?')) secCard.remove();
+  } else if(action === 'clear-image'){
+    const box = btn.closest('.paper-q-card').querySelector('.paper-img-box');
+    box.innerHTML = 'Click here and paste an image (Ctrl+V), or use "Upload Image" below';
+  }
+});
+
+document.getElementById('paperAddSectionBtn').addEventListener('click', () => {
+  const n = paperSectionsWrap.querySelectorAll('.paper-section-card').length;
+  const nextLabel = 'Section ' + String.fromCharCode(65 + n);
+  paperSectionsWrap.insertAdjacentHTML('beforeend', paperSectionCardHtml({label: nextLabel, marksLabel: '10 Marks', questions: []}));
+});
+
+// Upload image via file input
+paperSectionsWrap.addEventListener('change', (e) => {
+  if(e.target.classList.contains('paper-img-file')){
+    const file = e.target.files[0];
+    if(!file) return;
+    fileToDataUrlPaper(file, (dataUrl) => {
+      const box = e.target.closest('.paper-q-card').querySelector('.paper-img-box');
+      box.innerHTML = `<img src="${dataUrl}" alt="question image">`;
+    });
+  } else if(e.target.classList.contains('paper-ocr-file')){
+    const file = e.target.files[0];
+    if(!file) return;
+    const qEl = e.target.closest('.paper-q-card');
+    runOcrOnQuestion(qEl, file);
+  }
+});
+
+// Paste image directly (Ctrl+V) into either the diagram image box or the OCR scan box
+document.addEventListener('paste', (e) => {
+  const imgBox = e.target.closest ? e.target.closest('.paper-img-box') : null;
+  const ocrBox = e.target.closest ? e.target.closest('.paper-ocr-box') : null;
+  if(!imgBox && !ocrBox) return;
+  const items = (e.clipboardData || window.clipboardData).items || [];
+  for(const item of items){
+    if(item.type && item.type.indexOf('image') !== -1){
+      const file = item.getAsFile();
+      e.preventDefault();
+      if(imgBox){
+        fileToDataUrlPaper(file, (dataUrl) => { imgBox.innerHTML = `<img src="${dataUrl}" alt="question image">`; });
+      } else if(ocrBox){
+        runOcrOnQuestion(ocrBox.closest('.paper-q-card'), file);
+      }
+      break;
+    }
+  }
+});
+
+// Sharpens/binarizes the photo before OCR — upscales it and pushes faint
+// pixels (dotted lines, paper grain, shadows) to pure white while keeping
+// dark text pixels dark, which noticeably improves Tesseract's accuracy on
+// photographed/scanned question images.
+function preprocessImageForOcr(file){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const scale = img.width < 900 ? 2.5 : 1.5;
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const d = imgData.data;
+        for(let i = 0; i < d.length; i += 4){
+          const gray = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+          // Light pixels (paper, faint dotted lines) -> pure white.
+          // Dark pixels (ink) -> pure black. Keeps mid-tones for edges.
+          const v = gray > 175 ? 255 : (gray < 110 ? 0 : gray);
+          d[i] = d[i + 1] = d[i + 2] = v;
+        }
+        // Despeckle: a dotted separator line is made of small isolated dark
+        // dots, while letters are made of connected strokes. Any dark pixel
+        // with almost no dark neighbours is noise, not a letter — whiten it.
+        // This is what knocks out dotted/dashed lines running through text.
+        const w = canvas.width, h = canvas.height;
+        const dark = new Uint8Array(w * h);
+        for(let p = 0, i = 0; i < d.length; i += 4, p++){ dark[p] = d[i] < 128 ? 1 : 0; }
+        for(let y = 0; y < h; y++){
+          for(let x = 0; x < w; x++){
+            const p = y * w + x;
+            if(!dark[p]) continue;
+            let neighbors = 0;
+            for(let dy = -1; dy <= 1; dy++){
+              for(let dx = -1; dx <= 1; dx++){
+                if(dx === 0 && dy === 0) continue;
+                const nx = x + dx, ny = y + dy;
+                if(nx >= 0 && nx < w && ny >= 0 && ny < h && dark[ny * w + nx]) neighbors++;
+              }
+            }
+            if(neighbors <= 1){
+              const idx = p * 4;
+              d[idx] = d[idx + 1] = d[idx + 2] = 255;
+            }
+          }
+        }
+        ctx.putImageData(imgData, 0, 0);
+        resolve(canvas.toDataURL('image/png'));
+      };
+      img.onerror = () => reject(new Error('Could not load image'));
+      img.src = reader.result;
+    };
+    reader.onerror = () => reject(new Error('Could not read file'));
+    reader.readAsDataURL(file);
+  });
+}
+
+function runOcrOnQuestion(qEl, file){
+  const statusEl = qEl.querySelector('.paper-ocr-status');
+  const box      = qEl.querySelector('.paper-ocr-box');
+
+  if(typeof Tesseract === 'undefined'){
+    statusEl.textContent = 'OCR library still loading, please try again in a moment.';
+    return;
+  }
+  statusEl.textContent = 'Extracting text… please wait';
+
+  preprocessImageForOcr(file)
+    .then((cleanedDataUrl) => {
+      if(box) box.innerHTML = `<img src="${cleanedDataUrl}" alt="scanned question">`;
+      // PSM 6 = assume uniform block of text (good for single-column)
+      // PSM 11 = sparse text (good for MCQ layouts with scattered options)
+      // We try PSM 6 first; if we can't split options, PSM 11 is used automatically
+      // inside extractMcqParts via a second pass on the same text.
+      return Tesseract.recognize(cleanedDataUrl, 'eng', {tessedit_pageseg_mode: 6});
+    })
+    .then(({data}) => {
+      applyOcrText(qEl, data.text || '');
+      statusEl.textContent = 'Done — please check the extracted text/options below.';
+    })
+    .catch((err) => {
+      console.error('OCR error:', err);
+      statusEl.textContent = 'Could not read text — try a clearer, well-lit photo.';
+    });
+}
+
+// Scans OCR text for A/B/C/D option markers and splits the text around them.
+function extractMcqParts(rawText){
+  // Step 1: normalise common OCR noise
+  let text = rawText
+    .replace(/\r/g, '')
+    .replace(/\(8\)/gi, '(B)').replace(/\(6\)/gi, '(B)')
+    .replace(/\(0\)/gi, '(D)').replace(/\(Q\)/gi, '(D)')
+    .replace(/\(1\)/gi, '(A)').replace(/\(l\)/gi, '(A)')
+    .replace(/[{\[]([A-Da-d])[}\]]/g, '($1)')
+    .replace(/\(([A-Da-d])\)[.:,;!?]*/gi, '($1) ')
+    .replace(/\.{4,}/g, '.....')
+    .replace(/-{4,}/g, '-----');
+
+  // Step 2: find all (A) (B) (C) (D) markers
+  const markerRe = /\(\s*([A-Da-d])\s*\)\s*/gi;
+  const hits = [];
+  let m;
+  while((m = markerRe.exec(text)) !== null){
+    hits.push({ letter: m[1].toUpperCase(), idx: m.index, end: markerRe.lastIndex });
+  }
+
+  // Keep first occurrence of each letter in A→B→C→D order
+  const order = ['A','B','C','D'];
+  const picked = [];
+  let after = 0;
+  for(const letter of order){
+    const hit = hits.find(h => h.letter === letter && h.idx >= after);
+    if(hit){ picked.push(hit); after = hit.end; }
+    else   { picked.push(null); }
+  }
+  if(picked.filter(Boolean).length < 2) return null;
+
+  // Step 3: slice question and options
+  const firstHit = picked.find(Boolean);
+  const clean = s => s.replace(/\s+/g, ' ').trim();
+  const questionText = clean(text.slice(0, firstHit.idx));
+  const opts = picked.map((hit, i) => {
+    if(!hit) return '';
+    const next = picked.slice(i + 1).find(Boolean);
+    const end  = next ? next.idx : text.length;
+    return clean(text.slice(hit.end, end));
+  });
+  return { questionText, opts };
+}
+
+function applyOcrText(qEl, rawText){
+  const cleaned = rawText.replace(/\r/g, '').trim();
+  const type = qEl.dataset.qtype;
+  if(type === 'mcq'){
+    const parts = extractMcqParts(cleaned);
+    if(parts){
+      qEl.querySelector('.paper-q-text').value = parts.questionText;
+      const optEls = qEl.querySelectorAll('.paper-opt');
+      parts.opts.forEach((v, i) => { if(optEls[i] && v) optEls[i].value = v; });
+      return;
+    }
+  }
+  qEl.querySelector('.paper-q-text').value = cleaned;
+}
+
+// Paste image directly into the image box (Ctrl+V) is now handled by the
+// combined listener above, which also covers the OCR scan box.
+
+function collectPaperFromBuilder(){
+  const sections = Array.from(paperSectionsWrap.querySelectorAll('.paper-section-card')).map(secEl => {
+    const questions = Array.from(secEl.querySelectorAll('.paper-q-card')).map(qEl => {
+      const img = qEl.querySelector('.paper-img-box img');
+      return {
+        id: qEl.dataset.qid,
+        type: qEl.dataset.qtype,
+        text: qEl.querySelector('.paper-q-text').value.trim(),
+        options: qEl.dataset.qtype === 'mcq' ? Array.from(qEl.querySelectorAll('.paper-opt')).map(i => i.value.trim()) : [],
+        image: img ? img.src : '',
+        imagePos: qEl.querySelector('.paper-img-pos').value
+      };
+    });
+    return {
+      id: secEl.dataset.sid,
+      label: secEl.querySelector('.paper-sec-label').value.trim(),
+      instruction: secEl.querySelector('.paper-sec-instruction').value.trim(),
+      marksLabel: secEl.querySelector('.paper-sec-marks').value.trim(),
+      questions
+    };
+  });
+  return {
+    institute: document.getElementById('paperInstitute').value.trim(),
+    subject: document.getElementById('paperSubject').value.trim(),
+    cls: document.getElementById('paperClass').value.trim(),
+    duration: document.getElementById('paperDuration').value.trim(),
+    totalMarks: document.getElementById('paperTotalMarks').value.trim(),
+    date: document.getElementById('paperDate').value,
+    logo: STATE.paperLogo || '',
+    sections
+  };
+}
+
+function renderPaperList(){
+  if(!STATE.papers.length){
+    paperListWrap.innerHTML = '<tr><td colspan="4" class="empty-state">No papers yet</td></tr>';
+    return;
+  }
+  paperListWrap.innerHTML = STATE.papers.map(p => `<tr>
+    <td>${escapeHtml(p.subject || '(untitled)')}</td>
+    <td>${escapeHtml(p.date || '')}</td>
+    <td>${escapeHtml(p.totalMarks || '')}</td>
+    <td>
+      <button type="button" class="btn btn-outline btn-sm" data-paper-action="edit" data-id="${p.id}">Edit</button>
+      <button type="button" class="btn btn-outline btn-sm" data-paper-action="print" data-id="${p.id}">Print</button>
+      <button type="button" class="btn btn-outline btn-sm" style="border-color:var(--coral);color:var(--coral);" data-paper-action="delete" data-id="${p.id}">Delete</button>
+    </td>
+  </tr>`).join('');
+}
+
+function loadPaperIntoBuilder(paper){
+  paperEditId.value = paper.id;
+  document.getElementById('paperInstitute').value = paper.institute || 'PROGRESSIVE EDUCATION CENTRE';
+  document.getElementById('paperSubject').value = paper.subject || '';
+  document.getElementById('paperClass').value = paper.cls || '';
+  document.getElementById('paperDuration').value = paper.duration || '';
+  document.getElementById('paperTotalMarks').value = paper.totalMarks || '';
+  document.getElementById('paperDate').value = paper.date || '';
+  renderPaperSections(paper.sections);
+}
+
+paperListWrap.addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-paper-action]');
+  if(!btn) return;
+  const paper = STATE.papers.find(p => p.id === btn.dataset.id);
+  if(!paper) return;
+  const action = btn.dataset.paperAction;
+  if(action === 'edit'){
+    loadPaperIntoBuilder(paper);
+    document.getElementById('paperBuilderCard').scrollIntoView({behavior:'smooth'});
+  } else if(action === 'delete'){
+    if(confirm('Delete this paper? This cannot be undone.')){
+      STATE.papers = STATE.papers.filter(p => p.id !== paper.id);
+      saveState();
+      renderPaperList();
+    }
+  } else if(action === 'print'){
+    printPaper(paper);
+  }
+});
+
+paperMetaForm.addEventListener('submit', (e) => {
+  e.preventDefault();
+  const data = collectPaperFromBuilder();
+  if(!data.subject){ alert('Please enter the subject.'); return; }
+  if(paperEditId.value){
+    const idx = STATE.papers.findIndex(p => p.id === paperEditId.value);
+    if(idx !== -1) STATE.papers[idx] = Object.assign({id: paperEditId.value}, data);
+  } else {
+    const id = uid('paper');
+    STATE.papers.push(Object.assign({id}, data));
+    paperEditId.value = id;
+  }
+  saveState();
+  renderPaperList();
+  alert('Paper saved.');
+});
+
+document.getElementById('paperNewBtn').addEventListener('click', resetPaperBuilder);
+
+function toRoman(n){
+  const vals = [1000,900,500,400,100,90,50,40,10,9,5,4,1];
+  const syms = ['M','CM','D','CD','C','XC','L','XL','X','IX','V','IV','I'];
+  let r = '';
+  vals.forEach((v,i)=>{ while(n>=v){ r+=syms[i]; n-=v; } });
+  return r.toLowerCase(); // i, ii, iii, iv, v ...
+}
+
+function paperQuestionPrintHtml(q, qNumber){
+  const imgTag = q.image ? `<img src="${q.image}" alt="" style="max-width:${q.imagePos === 'side' ? '38%' : '85%'};max-height:230px;border:1px solid #ccc;border-radius:4px;">` : '';
+  const textHtml = escapeHtml(q.text || '').replace(/\n/g, '<br>');
+  let optsHtml = '';
+  if(q.type === 'mcq'){
+    const labels = ['A','B','C','D'];
+    optsHtml = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:3px 16px;margin-top:4px;padding-left:16px;">
+      ${(q.options||[]).map((o,i) => `<div><b>${labels[i]}.</b> ${escapeHtml(o||'')}</div>`).join('')}
+    </div>`;
+  }
+  const body = `<div><b>${toRoman(qNumber)}.</b> ${textHtml}</div>${optsHtml}`;
+  if(imgTag && q.imagePos === 'side'){
+    return `<div style="display:flex;gap:14px;align-items:flex-start;margin-top:9px;"><div style="flex:1;">${body}</div>${imgTag}</div>`;
+  }
+  return `<div style="margin-top:9px;">${body}${imgTag ? `<div style="text-align:center;margin-top:6px;">${imgTag}</div>` : ''}</div>`;
+}
+
+function buildPaperPrintHtml(p){
+  const logoSrc = p.logo || '';
+  const cls = p.cls ? ` (Class ${escapeHtml(p.cls)})` : '';
+  let html = `<div class="paper-print-doc">
+    <table style="width:100%;border-collapse:collapse;margin-bottom:10px;">
+      <tr>
+        <td style="border:1.5px solid #000;width:16%;text-align:center;vertical-align:middle;padding:8px;">
+          ${logoSrc ? `<img src="${logoSrc}" alt="logo" style="height:64px;width:64px;object-fit:contain;filter:grayscale(1) brightness(0);">` : ''}
+        </td>
+        <td style="border:1.5px solid #000;text-align:center;vertical-align:middle;padding:10px;">
+          <div style="font-size:15px;font-weight:bold;">${escapeHtml(p.institute || '')}</div>
+          <div style="font-size:18px;font-weight:bold;margin-top:4px;">${titleCase(p.subject || '')}${cls}</div>
+        </td>
+        <td style="border:1.5px solid #000;width:22%;padding:0;vertical-align:middle;">
+          <table style="width:100%;border-collapse:collapse;height:100%;">
+            <tr><td style="padding:5px 10px;border-bottom:1px solid #000;font-size:11px;">Duration : <b>${escapeHtml(p.duration||'')}</b></td></tr>
+            <tr><td style="padding:5px 10px;border-bottom:1px solid #000;font-size:11px;">Marks : <b>${escapeHtml(p.totalMarks||'')}</b></td></tr>
+            <tr><td style="padding:5px 10px;font-size:11px;">Date : <b>${escapeHtml(p.date||'')}</b></td></tr>
+          </table>
+        </td>
+      </tr>
+    </table>`;
+
+  // Title-case helper for subject names
+  function titleCase(str){ return (str||'').replace(/\w\S*/g, w => w.charAt(0).toUpperCase()+w.slice(1).toLowerCase()); }
+
+  (p.sections || []).forEach((sec, sIdx) => {
+    const secLabel = toRoman(sIdx+1).toUpperCase();
+    // Q number for this section (each section = one Q number)
+    const qNum = sIdx + 1;
+    html += `<div style="text-align:center;font-weight:bold;text-decoration:underline;margin:16px 0 6px;">${escapeHtml(sec.label || '')}</div>
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">
+        <div style="font-weight:bold;flex:1;"><b>Q${qNum}:</b> ${escapeHtml(sec.instruction || '')}</div>
+        ${sec.marksLabel ? `<div style="border:1.5px solid #000;padding:6px 16px;font-weight:bold;white-space:nowrap;">${escapeHtml(sec.marksLabel)}</div>` : ''}
+      </div>`;
+    let mcqCount = 0, otherCount = 0;
+    (sec.questions || []).forEach(q => {
+      if(q.type === 'mcq'){
+        mcqCount++;
+        html += paperQuestionPrintHtml(q, mcqCount);
+      } else {
+        otherCount++;
+        const imgTag = q.image ? `<img src="${q.image}" alt="" style="max-width:${q.imagePos === 'side' ? '38%' : '85%'};max-height:230px;border:1px solid #ccc;border-radius:4px;">` : '';
+        const textHtml = escapeHtml(q.text || '').replace(/\n/g, '<br>');
+        const body = `<div style="padding-left:16px;">${toRoman(otherCount)}. ${textHtml}</div>`;
+        html += (imgTag && q.imagePos === 'side')
+          ? `<div style="display:flex;gap:14px;align-items:flex-start;margin-top:8px;"><div style="flex:1;">${body}</div>${imgTag}</div>`
+          : `<div style="margin-top:8px;">${body}${imgTag ? `<div style="text-align:center;margin-top:6px;">${imgTag}</div>` : ''}</div>`;
+      }
+    });
+  });
+
+  html += '</div>';
+  return html;
+}
+
+function printPaper(paper){
+  const withLogo = Object.assign({}, paper, {logo: STATE.paperLogo || ''});
+  document.getElementById('printArea').innerHTML = buildPaperPrintHtml(withLogo);
+  window.print();
+}
+
+document.getElementById('paperPrintBtn').addEventListener('click', () => {
+  const data = collectPaperFromBuilder();
+  if(!data.subject){ alert('Please enter the subject before printing.'); return; }
+  printPaper(data);
+});
+
+function refreshPaperSubjectList(){
+  document.getElementById('paperSubjectList').innerHTML = (STATE.subjects || []).map(s => `<option value="${escapeHtml(s.name)}">`).join('');
+}
+
+/* ============================================================
    INIT
    ============================================================ */
 async function init(){
@@ -5901,6 +6500,10 @@ async function init(){
   renderOverview();
   renderTimetable();
   renderYearlyAssessment();
+  refreshPaperSubjectList();
+  renderPaperList();
+  resetPaperBuilder();
+  refreshPaperLogoPreview();
 }
 init();
 </script>
