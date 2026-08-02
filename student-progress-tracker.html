@@ -3026,6 +3026,14 @@ let STATE = {
   invigilationNotes: DEFAULT_INVIGILATION_NOTES // free-text rules block printed below the invigilation table
 };
 
+// Guaranteed fallback logo for every PDF/print across every panel (Admin,
+// Academia, Teachers, Examination Incharge, Campus Incharge). Some panels
+// don't have the Papers tab (where the logo can be re-uploaded), so if
+// STATE.paperLogo ever comes back empty for them, every print/PDF function
+// below falls back to this same default institute logo instead of showing
+// no logo at all.
+const DEFAULT_PAPER_LOGO = document.getElementById('paperLogoPreview') ? document.getElementById('paperLogoPreview').src : '';
+
 // Shared secret sent with every API call — see README for how this is set.
 // (This offers basic protection against random internet traffic hitting the
 // API, but it is visible to anyone who views this page's source, same as
@@ -3350,13 +3358,19 @@ let adminUnlocked = true;
    Each role sees only the sections relevant to it; Campus Incharge sees everything. */
 const ROLE_TABS = {
   admin:       ['tab-attendance','tab-timetable','tab-students-data','tab-mom','tab-awardlist'],
-  academia:    ['tab-courseprogress','tab-timetable','tab-coursebreakup','tab-students-data','tab-mom','tab-awardlist'],
+  academia:    ['tab-courseprogress','tab-timetable','tab-coursebreakup','tab-mom','tab-awardlist'],
   incharge:    ['tab-students','tab-subjects','tab-report','tab-ranking','tab-overview','tab-courseprogress','tab-attendance','tab-timetable','tab-coursebreakup','tab-papers','tab-students-data','tab-mom','tab-awardlist','tab-invigilation'],
   teachers:    ['tab-timetable','tab-papers','tab-mom','tab-awardlist'],
   examination: ['tab-subjects','tab-timetable','tab-mom','tab-awardlist','tab-invigilation']
 };
 const roleParam = new URLSearchParams(window.location.search).get('role');
 const allowedTabs = ROLE_TABS[roleParam] || null;
+
+// Wide-content tabs (Subjects pivot table, Timetable grid, Minutes of Meeting)
+// need the sidebar collapsed and the section expanded to full width so they
+// fit on screen without a scrollbar — declared here (rather than only at
+// click-time) so the initial role-based tab selection below can apply it too.
+const WIDE_TABS = ['tab-subjects', 'tab-timetable', 'tab-mom'];
 
 // Let the user know which panel they're in — shown for Administrator and
 // Academia (scoped roles); Campus Incharge has full access so it's omitted.
@@ -3402,7 +3416,20 @@ if(allowedTabs){
     if(firstBtn){
       firstBtn.classList.add('active');
       const firstSection = document.getElementById(allowedTabs[0]);
-      if(firstSection) firstSection.classList.add('active');
+      if(firstSection){
+        firstSection.classList.add('active');
+        // Same wide-tab treatment applied on manual tab clicks, so a role
+        // (like Examination Incharge) that opens straight into a wide tab
+        // gets the full-width layout immediately instead of only after
+        // clicking away and back.
+        if(WIDE_TABS.includes(allowedTabs[0])){
+          firstSection.classList.add('full-width-section');
+          if(window.innerWidth > 900){
+            const sidebarInit = document.querySelector('.sidebar');
+            if(sidebarInit) sidebarInit.classList.add('collapsed');
+          }
+        }
+      }
     }
   }
 
@@ -3431,8 +3458,6 @@ if(allowedTabs){
     if(marksAddBtn) marksAddBtn.style.display = 'none';
   }
 }
-
-const WIDE_TABS = ['tab-subjects', 'tab-timetable', 'tab-mom'];
 
 // ---------- Mobile drawer (hamburger menu) ----------
 const mobileMenuToggle = document.getElementById('mobileMenuToggle');
@@ -5081,7 +5106,7 @@ function reportSyncMetaInputs(){
   if(yearSel) yearSel.value = STATE.reportMeta.year || '';
   const logoImg = document.getElementById('reportLogoImg');
   if(logoImg){
-    const logoSrc = STATE.paperLogo || '';
+    const logoSrc = STATE.paperLogo || DEFAULT_PAPER_LOGO;
     if(logoSrc) logoImg.src = logoSrc;
   }
 }
@@ -5114,7 +5139,7 @@ function progressSyncMetaInputs(){
   if(yearSel) yearSel.value = STATE.progressMeta.year || '';
   const logoImg = document.getElementById('progressLogoImg');
   if(logoImg){
-    const logoSrc = STATE.paperLogo || '';
+    const logoSrc = STATE.paperLogo || DEFAULT_PAPER_LOGO;
     if(logoSrc) logoImg.src = logoSrc;
   }
 }
@@ -5268,7 +5293,7 @@ document.getElementById('monthlyAttendanceDownloadPdfBtn').addEventListener('cli
   if(meta.year) metaParts.push(`Academic Year: ${escapeHtml(meta.year)}`);
   metaParts.push(`Month: ${monthLabel(monthKey)}`);
   const metaLine = metaParts.join(' &nbsp;|&nbsp; ');
-  const logoSrc = STATE.paperLogo || '';
+  const logoSrc = STATE.paperLogo || DEFAULT_PAPER_LOGO;
   const logoTag = logoSrc ? `<img src="${logoSrc}" alt="logo" style="height:56px;width:56px;object-fit:contain;filter:grayscale(1) brightness(0);">` : '';
   const tableHtml = buildMonthlyAttendanceTableHtml(monthKey, true);
   document.getElementById('printArea').innerHTML =
@@ -6011,7 +6036,7 @@ document.getElementById('marksDownloadPdfBtn').addEventListener('click', ()=>{
 
   const meta = STATE.progressMeta || {cls:'', year:''};
   const metaLine = `Class: ${escapeHtml(meta.cls || '—')} | Academic Year: ${escapeHtml(meta.year || '—')}`;
-  const logoSrc = STATE.paperLogo || '';
+  const logoSrc = STATE.paperLogo || DEFAULT_PAPER_LOGO;
   const logoTag = logoSrc ? `<img src="${logoSrc}" alt="logo" style="height:56px;width:56px;object-fit:contain;filter:grayscale(1) brightness(0);">` : '';
   let html = `<div style="display:flex; align-items:center; gap:14px; margin-bottom:4px;">${logoTag}<div><h2 style="margin:0;">Subjects &amp; Marks — Progress</h2><p style="margin:2px 0 0;">${metaLine}</p></div></div>`;
   html += '<table><thead><tr><th>Student</th><th>Roll</th>';
@@ -6274,7 +6299,7 @@ document.getElementById('cbDownloadPdfBtn').addEventListener('click', () => {
   const metaBits = [];
   if(meta.cls) metaBits.push('Class: ' + escapeHtml(meta.cls));
   if(meta.year) metaBits.push('Academic Year: ' + escapeHtml(meta.year));
-  const logoSrc = STATE.paperLogo || '';
+  const logoSrc = STATE.paperLogo || DEFAULT_PAPER_LOGO;
   const logoTag = logoSrc ? `<img src="${logoSrc}" alt="logo" style="height:56px;width:56px;object-fit:contain;filter:grayscale(1) brightness(0);">` : '';
   let html = `<div style="display:flex; align-items:center; gap:14px; margin-bottom:4px;">${logoTag}<div><h2 style="margin:0;">Course Breakup — ${escapeHtml(cfg.label)}</h2><p style="margin:2px 0 0;">${metaBits.length ? metaBits.join(' &nbsp;|&nbsp; ') : '&nbsp;'}</p></div></div>`;
   html += `<table${cfg.rtl ? ' dir="rtl"' : ''}><thead><tr>`;
@@ -6479,10 +6504,12 @@ function layoutTimetableEntries(sortedEntries){
   return result;
 }
 
-// Timetable drag-and-drop is available everywhere except the read-only
-// Administrator panel (which only gets the bulk-import/manage grid hidden).
+// Timetable drag-and-drop is only allowed for Academia and Campus Incharge
+// (the same two panels that get the add/edit form and bulk import) — every
+// other panel (Admin, Teachers, Examination Incharge) is fully view-only,
+// including drag-and-drop.
 function ttTimetableEditable(){
-  return typeof roleParam === 'undefined' || roleParam !== 'admin';
+  return roleParam === 'academia' || roleParam === 'incharge' || typeof roleParam === 'undefined' || roleParam === null;
 }
 
 function minutesToHHMM(mins){
@@ -6924,7 +6951,7 @@ if(timetableDownloadPdfBtn){
     if(!gridEl){ alert('Nothing to print yet.'); return; }
     const meta = STATE.timetableMeta || {cls:'', year:''};
     const metaLine = `Class: ${escapeHtml(meta.cls || '—')} | Academic Year: ${escapeHtml(meta.year || '—')}`;
-    const logoSrc = STATE.paperLogo || '';
+    const logoSrc = STATE.paperLogo || DEFAULT_PAPER_LOGO;
     const logoTag = logoSrc ? `<img src="${logoSrc}" alt="logo" style="height:56px;width:56px;object-fit:contain;filter:grayscale(1) brightness(0);">` : '';
     document.getElementById('printArea').innerHTML =
       `<div style="display:flex; align-items:center; gap:14px; margin-bottom:4px;">${logoTag}<div><h2 style="margin:0;">Weekly Timetable — 6:00 PM to 9:00 PM</h2><p style="margin:2px 0 0;">${metaLine}</p></div></div>` + gridEl.outerHTML;
@@ -7102,7 +7129,7 @@ if(yttDownloadPdfBtn) yttDownloadPdfBtn.addEventListener('click', ()=>{
   const ya = STATE.yearlyAssessment;
   if(!ya || ya.rows.length===0){ alert('No assessment schedule to print yet.'); return; }
 
-  const logoSrc = STATE.paperLogo || '';
+  const logoSrc = STATE.paperLogo || DEFAULT_PAPER_LOGO;
   const logoTag = logoSrc ? `<img src="${logoSrc}" alt="logo" style="height:56px;width:56px;object-fit:contain;filter:grayscale(1) brightness(0);">` : '';
 
   let html = `<div style="display:flex; align-items:center; gap:14px; margin-bottom:4px;">${logoTag}<div><h2 style="margin:0;">${escapeHtml(ya.title || 'Yearly Assessment Schedule')}</h2>${ya.subtitle ? `<p style="margin:2px 0 0;">${escapeHtml(ya.subtitle)}</p>` : ''}</div></div>`;
@@ -7176,7 +7203,7 @@ if(yttDownloadExcelBtn) yttDownloadExcelBtn.addEventListener('click', ()=>{
   let html = '<table style="border-collapse:collapse; border:2px solid #000000;">';
 
   // Logo + Title
-  const logoSrc = STATE.paperLogo || '';
+  const logoSrc = STATE.paperLogo || DEFAULT_PAPER_LOGO;
   if(logoSrc){
     html += `<tr><td colspan="${numCols}" style="${thickBorder} text-align:center; vertical-align:middle; padding:8px;"><img src="${logoSrc}" style="height:50px;width:50px;object-fit:contain;filter:grayscale(1) brightness(0);"></td></tr>`;
   }
@@ -7566,7 +7593,7 @@ function collectPaperFromBuilder(){
     duration: document.getElementById('paperDuration').value.trim(),
     totalMarks: document.getElementById('paperTotalMarks').value.trim(),
     date: document.getElementById('paperDate').value,
-    logo: STATE.paperLogo || '',
+    logo: STATE.paperLogo || DEFAULT_PAPER_LOGO,
     sections
   };
 }
@@ -7720,7 +7747,7 @@ function buildPaperPrintHtml(p){
 }
 
 function printPaper(paper){
-  const withLogo = Object.assign({}, paper, {logo: STATE.paperLogo || ''});
+  const withLogo = Object.assign({}, paper, {logo: STATE.paperLogo || DEFAULT_PAPER_LOGO});
   document.getElementById('printArea').innerHTML = buildPaperPrintHtml(withLogo);
   window.print();
 }
@@ -7955,7 +7982,7 @@ function alFillMetaFields(){
 
   const logoImg = document.getElementById('alHeaderLogo');
   if(logoImg){
-    const logo = STATE.paperLogo || '';
+    const logo = STATE.paperLogo || DEFAULT_PAPER_LOGO;
     if(logo){ logoImg.src = logo; logoImg.style.display = ''; }
     else{ logoImg.style.display = 'none'; }
   }
@@ -8070,7 +8097,7 @@ document.getElementById('alDownloadPdfBtn').addEventListener('click', () => {
   const rows = STATE.awardList || [];
   if(rows.length === 0){ alert('No students on this list yet to download.'); return; }
   const meta = STATE.awardListMeta || {};
-  const logo = STATE.paperLogo || '';
+  const logo = STATE.paperLogo || DEFAULT_PAPER_LOGO;
 
   let html = `<div style="display:flex;align-items:center;gap:14px;margin-bottom:10px;">${logo ? `<img src="${logo}" alt="PEC Logo" style="height:48px;width:auto;">` : ''}<div><h2 style="margin:0;color:#000;">PROGRESSIVE EDUCATION CENTRE</h2><p style="margin:2px 0 0;">AWARD LIST${meta.cls ? ' — Class ' + escapeHtml(meta.cls) : ''}</p></div><div style="margin-left:auto;text-align:right;font-size:12.5px;">Month: <strong>${escapeHtml(meta.month || '')}</strong>${meta.year ? ' ' + escapeHtml(meta.year) : ''}</div></div>`;
   html += `<table style="width:100%;border-collapse:collapse;margin-bottom:14px;"><tr>
@@ -8166,7 +8193,7 @@ function ivFillMetaFields(){
 
   const logoImg = document.getElementById('ivHeaderLogo');
   if(logoImg){
-    const logo = STATE.paperLogo || '';
+    const logo = STATE.paperLogo || DEFAULT_PAPER_LOGO;
     if(logo){ logoImg.src = logo; logoImg.style.display = ''; }
     else{ logoImg.style.display = 'none'; }
   }
@@ -8317,7 +8344,7 @@ document.getElementById('ivDownloadPdfBtn').addEventListener('click', () => {
   const rows = STATE.invigilationList || [];
   if(rows.length === 0){ alert('No exam dates on this roster yet to download.'); return; }
   const meta = STATE.invigilationMeta || {};
-  const logo = STATE.paperLogo || '';
+  const logo = STATE.paperLogo || DEFAULT_PAPER_LOGO;
 
   let html = `<div style="text-align:center;margin-bottom:4px;">
     <div style="display:flex;align-items:center;justify-content:center;gap:14px;">${logo ? `<img src="${logo}" alt="PEC Logo" style="height:48px;width:auto;filter:grayscale(1) brightness(0);">` : ''}<h2 style="margin:0;color:#000;">PROGRESSIVE EDUCATION CENTRE</h2></div>
