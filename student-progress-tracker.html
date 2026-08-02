@@ -2657,8 +2657,7 @@ select#reportStudentSelect, select#rankSortSelect{ margin-bottom:0; }
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
         <label style="font-size:12.5px;font-weight:600;color:var(--ink-soft);margin:0;">MOM's (Key Points Discussed)</label>
         <div style="display:flex;gap:8px;align-items:center;">
-          <span style="font-size:11.5px;color:var(--muted);">Type translation directly, or use ✨ AI (needs API key)</span>
-          <button class="btn btn-sm btn-outline" onclick="momSetApiKey()" title="Optional: set a free Groq API key to enable AI translate">🔑 API Key (optional)</button>
+          <span style="font-size:11.5px;color:var(--muted);">Type translation directly, or use ✨ AI</span>
           <button class="btn btn-sm" style="background:var(--late-soft);color:var(--late);border:none;cursor:pointer;" onclick="momTranslateAllRows()">
             <span id="momTransAllIcon">✨</span> Translate All
           </button>
@@ -8498,7 +8497,7 @@ function momBuildRowHTML(idx, topic, tTopic, highlights, tHL){
     </td>
     <td>
       <div class="mom-action-btns">
-        <button class="icon-btn icon-btn-ai" title="AI Translate (needs API key)" onclick="momTranslateRow(${idx})">✨</button>
+        <button class="icon-btn icon-btn-ai" title="AI Translate" onclick="momTranslateRow(${idx})">✨</button>
         <button class="icon-btn icon-btn-del" title="Delete Row" onclick="momDeleteRow(${idx})">🗑️</button>
       </div>
     </td>
@@ -8532,9 +8531,14 @@ function momDeleteRow(idx){
 // (survives page reloads/new sessions). It is only cleared — and the
 // person only asked to re-enter it — when Groq itself rejects the key as
 // invalid/expired (401/403), never for any other kind of error.
+// Hardcoded so the key works everywhere (including mobile browsers where
+// localStorage can be blocked/cleared) without ever prompting the user.
+const MOM_HARDCODED_GROQ_KEY = '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';
+
 let _momApiKeyMemory = null;
 
 function momGetApiKey(){
+  if(MOM_HARDCODED_GROQ_KEY) return MOM_HARDCODED_GROQ_KEY;
   if(_momApiKeyMemory) return _momApiKeyMemory;
   try{
     const stored = localStorage.getItem('pec_groq_key') || '';
@@ -8610,10 +8614,7 @@ If the input is already in English, clean it up and return it properly. Do not a
     let detail = '';
     try{ detail = (await res.json()).error?.message || ''; }catch(e){}
     if(res.status === 401 || res.status === 403){
-      // Only a real "invalid/expired key" response clears the saved key —
-      // this is the one case where the person needs to re-enter it.
-      momStoreApiKey('');
-      throw new Error('Your API key has expired or stopped working — please enter it again.');
+      throw new Error('The translation service key has stopped working — please let the site owner know.');
     }
     throw new Error(detail || `Request failed (${res.status})`);
   }
