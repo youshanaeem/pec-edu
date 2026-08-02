@@ -718,7 +718,7 @@ html.pec-authed #loginGate{ display:none; }
       <span class="panel-enter">Enter Panel <span class="arrow">→</span></span>
     </a>
 
-    <a class="panel-card panel-examination" href="student-progress-tracker.html?role=examination">
+    <a class="panel-card panel-examination" href="?panel=examination" onclick="return requestPanelAccess(event, 'examination');">
       <div class="top-accent"></div>
       <div class="panel-icon">EI</div>
       <div class="panel-role-tag">Role 03</div>
@@ -836,12 +836,13 @@ setInterval(updateLiveClock, 1000);
   }
 })();
 
-/* ---------- Panel access password (Administrator / Academia / Campus Incharge) ---------- */
+/* ---------- Panel access password (Administrator / Academia / Examination Incharge / Campus Incharge) ---------- */
 (function(){
   var PANEL_PASSWORD = 'PEC123###';
   var PANEL_TARGETS = {
     admin: 'student-progress-tracker.html?role=admin',
     academia: 'student-progress-tracker.html?role=academia',
+    examination: 'student-progress-tracker.html?role=examination',
     incharge: 'student-progress-tracker.html?role=incharge'
   };
   var overlay = document.getElementById('panelPassOverlay');
@@ -907,7 +908,7 @@ setInterval(updateLiveClock, 1000);
     });
   }
 
-  // Handles a ?panel=admin/academia/incharge URL — used when a panel link is
+  // Handles a ?panel=admin/academia/examination/incharge URL — used when a panel link is
   // opened in a new tab, opened directly, or reached via the main login
   // redirect below. Runs on load and again right after main login succeeds.
   window.handlePanelParam = function(){
