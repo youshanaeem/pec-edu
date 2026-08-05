@@ -171,6 +171,20 @@ body{
 }
 .role-badge.visible{ display:inline-block; }
 
+/* ---------- View-only mode (read-only Campus Incharge access) ---------- */
+.pec-view-only main.main-content button:disabled{
+  opacity:0.45;
+  cursor:not-allowed;
+  filter:grayscale(35%);
+}
+.pec-view-only main.main-content input:disabled,
+.pec-view-only main.main-content select:disabled,
+.pec-view-only main.main-content textarea:disabled{
+  opacity:0.6;
+  cursor:not-allowed;
+  background:rgba(127,127,127,0.12);
+}
+
 /* ---------- Mobile menu toggle (hamburger) — hidden on desktop ---------- */
 .menu-toggle{
   display:none;
@@ -1124,6 +1138,7 @@ select#reportStudentSelect, select#rankSortSelect{ margin-bottom:0; }
 #marksEditToggleBtn.cb-edit-active,
 #reportEditToggleBtn.cb-edit-active,
 #yttEditToggleBtn.cb-edit-active,
+#pttEditToggleBtn.cb-edit-active,
 #sdEditToggleBtn.cb-edit-active{
   background:var(--chalk-green);
   border-color:var(--chalk-green);
@@ -1341,6 +1356,9 @@ select#reportStudentSelect, select#rankSortSelect{ margin-bottom:0; }
     <button class="tab-btn" data-tab="tab-mom"><span class="num">12</span>MOM's</button>
     <button class="tab-btn" data-tab="tab-awardlist"><span class="num">13</span>Award List</button>
     <button class="tab-btn" data-tab="tab-invigilation"><span class="num">14</span>Invigilation List</button>
+    <button class="tab-btn" data-tab="tab-fund"><span class="num">15</span>Fund Account</button>
+    <button class="tab-btn" data-tab="tab-deposit"><span class="num">16</span>Deposit Record</button>
+    <button class="tab-btn" data-tab="tab-papertimetable"><span class="num">17</span>Monthly Paper Timetable</button>
   </nav>
 </aside>
 
@@ -2869,6 +2887,73 @@ select#reportStudentSelect, select#rankSortSelect{ margin-bottom:0; }
   </div>
 </div>
 
+<!-- ============================================================
+     SECTION 15: FUND ACCOUNT — campus fund ledger
+     (Administrator and Campus Incharge panels only)
+     ============================================================ -->
+<div id="tab-fund" class="section">
+  <div class="section-title">Fund Account</div>
+  <p class="section-sub">Click "Edit" to unlock the table, then fill in the date, description, credit, debit, contribution, total and current balance for each row. Click "Edit" again to lock it back. Download the ledger as CSV any time.</p>
+
+  <div class="card">
+    <div class="tt-toolbar">
+      <button type="button" class="btn btn-outline btn-sm" id="fundEditToggleBtn">✏️ Edit</button>
+      <span id="fundAddRowWrap" style="display:none;">
+        <button type="button" class="btn btn-outline" id="fundAddRowBtn">+ Add Row</button>
+      </span>
+      <button type="button" class="btn btn-outline" id="fundDownloadCsvBtn">⬇ Download CSV</button>
+    </div>
+
+    <div style="overflow-x:auto;" id="fundTableWrap"></div>
+  </div>
+</div>
+
+<!-- ============================================================
+     SECTION 16: DEPOSIT RECORD — student deposit/notes-fee ledger
+     (Administrator and Campus Incharge panels only)
+     ============================================================ -->
+<div id="tab-deposit" class="section">
+  <div class="section-title">Deposit Record</div>
+  <p class="section-sub">Click "Edit" to unlock the table. Date and Day are pick-from-a-list so nothing needs to be typed for them — just fill in the rest. Click "Edit" again to lock it back. Download the record as CSV any time.</p>
+
+  <div class="card">
+    <div class="tt-toolbar">
+      <button type="button" class="btn btn-outline btn-sm" id="depEditToggleBtn">✏️ Edit</button>
+      <span id="depAddRowWrap" style="display:none;">
+        <button type="button" class="btn btn-outline" id="depAddRowBtn">+ Add Row</button>
+      </span>
+      <button type="button" class="btn btn-outline" id="depDownloadCsvBtn">⬇ Download CSV</button>
+    </div>
+
+    <div style="overflow-x:auto;" id="depTableWrap"></div>
+  </div>
+</div>
+
+<!-- ============================================================
+     SECTION 17: MONTHLY PAPER TIMETABLE — exam paper schedule
+     (Campus Incharge and Examination Incharge panels only)
+     ============================================================ -->
+<div id="tab-papertimetable" class="section">
+  <div class="section-title">Monthly Paper Timetable</div>
+  <p class="section-sub">Click "Edit" to unlock the schedule. Changing the Month auto-pulls that month's Subject, Day &amp; Date straight from the Yearly Assessment Schedule (Students tab) — everything stays editable afterwards. Download as CSV or PDF/Print any time.</p>
+
+  <div class="card" id="paperTimetableCard">
+    <div class="tt-toolbar">
+      <button type="button" class="btn btn-outline btn-sm" id="pttEditToggleBtn">✏️ Edit</button>
+      <label style="margin:0 6px 0 12px;font-weight:600;">Month</label>
+      <select id="pttMonthSelect" style="width:auto;"></select>
+      <span id="pttAddButtonsWrap" style="display:none; gap:10px; flex-wrap:wrap;">
+        <button type="button" class="btn btn-outline" id="pttAddSubjectBtn">+ Add Subject Column</button>
+        <button type="button" class="btn btn-outline" id="pttSyncYearlyBtn">🔄 Pull from Yearly Schedule</button>
+      </span>
+      <button type="button" class="btn btn-outline" id="pttDownloadCsvBtn" style="margin-left:auto;">⬇ Download CSV</button>
+      <button type="button" class="btn btn-outline" id="pttDownloadPdfBtn">🖨️ Download / Print PDF</button>
+    </div>
+
+    <div style="overflow-x:auto;" id="pttTableWrap"></div>
+  </div>
+</div>
+
 <!-- MOM TOAST -->
 <div id="momToast" class="mom-toast"></div>
 
@@ -2946,6 +3031,81 @@ function defaultYearlyAssessment(){
   };
 }
 
+// Default Monthly Paper Timetable — matches the original spreadsheet
+// (PROGRESSIVE EDUCATION CENTRE, Month : August, Subjects/Day/Date rows).
+// Shown the first time (before anything has been saved) for Campus
+// Incharge / Examination Incharge so the schedule isn't blank.
+const PTT_MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const PTT_WEEKDAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+const PTT_DATES = Array.from({length:31}, (_, i) => String(i + 1));
+
+function defaultPaperTimetable(){
+  return {
+    month: 'August',
+    subjects: [
+      {name:'Physics',   day:'Friday',  date:'28'},
+      {name:'English',   day:'Tuesday', date:'7'},
+      {name:'Chemistry', day:'Friday',  date:'11'},
+      {name:'Sindhi',    day:'Tuesday', date:'14'},
+      {name:'Comp',      day:'Friday',  date:'18'},
+      {name:'Pst',       day:'Tuesday', date:'21'},
+      {name:'Maths',     day:'Friday',  date:'25'}
+    ]
+  };
+}
+
+// ---- Auto-fill the Monthly Paper Timetable from the Yearly Assessment
+// Schedule (Students tab), so a month only needs to be built once (in the
+// yearly table) and every monthly view just pulls its Subject/Day/Date. ----
+
+// Matches a Yearly Assessment row's free-text month label (e.g.
+// "September(Module I)") back to a plain calendar month (e.g. "September")
+// so it can be looked up by the Monthly Paper Timetable's month dropdown.
+function normalizePttMonth(str){
+  const s = String(str || '').toLowerCase();
+  return PTT_MONTHS.find(m => s.includes(m.toLowerCase())) || null;
+}
+
+// Finds the Yearly Assessment Schedule's data-row for a given calendar
+// month (first match wins if more than one row mentions that month).
+function findYearlyRowForMonth(monthName){
+  const ya = STATE.yearlyAssessment;
+  if(!ya || !Array.isArray(ya.rows)) return null;
+  return ya.rows.find(row => row.type === 'data' && normalizePttMonth(row.month) === monthName) || null;
+}
+
+// Rebuilds STATE.paperTimetable.subjects (name + day + date) straight from
+// the Yearly Assessment Schedule's row that matches the currently selected
+// month. Returns true if a matching yearly row was found and applied, false
+// if there's nothing to pull (existing subjects, if any, are left as-is).
+function syncPaperTimetableFromYearly(){
+  const pt = STATE.paperTimetable;
+  const ya = STATE.yearlyAssessment;
+  if(!pt || !ya || !Array.isArray(ya.subjects) || ya.subjects.length === 0) return false;
+  const row = findYearlyRowForMonth(pt.month);
+  if(!row) return false;
+  pt.subjects = ya.subjects.map((s, i) => {
+    const rawDate = (row.dates && row.dates[i] !== undefined) ? String(row.dates[i]).trim() : '';
+    const dateNum = parseInt(rawDate, 10);
+    const date = (dateNum >= 1 && dateNum <= 31) ? String(dateNum) : (PTT_DATES.includes(rawDate) ? rawDate : PTT_DATES[0]);
+    const day = PTT_WEEKDAYS.includes(s.day) ? s.day : PTT_WEEKDAYS[0];
+    return {name: s.name || 'Subject', day, date};
+  }).filter(s => (s.name || '').trim() !== '');
+  return true;
+}
+
+// Subject dropdown options — real subjects already configured in Subjects &
+// Marks come first, followed by a fixed fallback list, so the dropdown is
+// never empty even before any subject has been set up on the website.
+function ptSubjectOptions(){
+  const fromState = (STATE.subjects || []).map(s => s.name).filter(Boolean);
+  const defaults = ['Physics','Chemistry','Biology','Maths','English','Urdu','Sindhi','Islamiat','Pakistan Studies','Computer Science','Comp','Pst','Economics','Statistics','Civics'];
+  const seen = new Set();
+  const out = [];
+  [...fromState, ...defaults].forEach(n => { if(!seen.has(n)){ seen.add(n); out.push(n); } });
+  return out;
+}
+
 const DEFAULT_COURSE_BREAKUP = {"chemistry": [{"sno": "1", "chapter": "Chemical Equilibrium", "topicNo": "1.1", "topic": "Reversible Reaction and Dynamic Equilibrium", "planned": "August", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "1.2", "topic": "Law of Mass Action and Derivation of the Expression for Equilibrium Constant", "planned": "August", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "1.3", "topic": "Equilibrium Constant and Its Units", "planned": "August", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "1.4", "topic": "Importance of Equilibrium Constant", "planned": "August", "executed": "", "topicStatus": false}, {"sno": "2", "chapter": "Acid, Base and Salt", "topicNo": "2.1", "topic": "Concepts of Acids and Bases (Arrhenius, Bronsted-Lowry, Lewis)", "planned": "August", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "2.2", "topic": "Concept of pH and pOH", "planned": "August", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "2.3", "topic": "Salts (Types, Formation and Buffer Solutions)", "planned": "August", "executed": "", "topicStatus": false}, {"sno": "3", "chapter": "Organic Chemistry", "topicNo": "3.1", "topic": "Organic Compounds", "planned": "September", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "3.2", "topic": "Sources of Organic Compounds", "planned": "September", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "3.3", "topic": "General Characteristics of Organic Compounds", "planned": "September", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "3.4", "topic": "Uses of Organic Compounds", "planned": "September", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "3.5", "topic": "Alkanes and Alkyl Radicals", "planned": "September", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "3.6", "topic": "Nomenclature of Simple Alkanes, Alkenes and Alkynes", "planned": "September", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "3.7", "topic": "Introduction to Functional Groups", "planned": "September", "executed": "", "topicStatus": false}, {"sno": "4", "chapter": "Biochemistry", "topicNo": "4.1", "topic": "Carbohydrates", "planned": "September", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "4.2", "topic": "Proteins", "planned": "September", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "4.3", "topic": "Lipids", "planned": "September", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "4.4", "topic": "Nucleic Acids", "planned": "September", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "4.5", "topic": "Vitamins", "planned": "September", "executed": "", "topicStatus": false}, {"sno": "5", "chapter": "Environmental Chemistry-I: The Atmosphere", "topicNo": "5.1", "topic": "Composition of Atmosphere", "planned": "October", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "5.2", "topic": "Layers of Atmosphere", "planned": "October", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "5.3", "topic": "Pollutants", "planned": "October", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "5.4", "topic": "Acid Rain and its Effects", "planned": "October", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "5.5", "topic": "Ozone Depletion and its Effects", "planned": "October", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "5.6", "topic": "Green House Effect", "planned": "October", "executed": "", "topicStatus": false}, {"sno": "6", "chapter": "Environmental Chemistry-II: Water", "topicNo": "6.1", "topic": "Water", "planned": "November", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "6.2", "topic": "Soft and Hard Water", "planned": "November", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "6.3", "topic": "Water Pollutants", "planned": "November", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "6.4", "topic": "Water Borne Diseases", "planned": "November", "executed": "", "topicStatus": false}, {"sno": "7", "chapter": "Analytical Chemistry", "topicNo": "7.1", "topic": "Qualitative and Quantitative Analysis", "planned": "October", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "7.2", "topic": "Important Parameters", "planned": "October", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "7.3", "topic": "Classical Methods", "planned": "October", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "7.4", "topic": "Advanced Instrumental Methods", "planned": "October", "executed": "", "topicStatus": false}, {"sno": "8", "chapter": "Industrial Chemistry", "topicNo": "8.1", "topic": "Preparation of Soap", "planned": "November", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "8.2", "topic": "Preparation of Sugar from Sugar Cane", "planned": "December", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "8.3", "topic": "Preparation of Soft Drinks", "planned": "December", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "8.4", "topic": "Petroleum Industry", "planned": "December", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "8.5", "topic": "Pharmaceutical Industry", "planned": "December", "executed": "", "topicStatus": false}], "computer": [{"sno": "1", "chapter": "Problem Solving And Algorithm Designing", "topicNo": "1.1", "topic": "Problem Solving", "planned": "September", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "1.2", "topic": "Algorithm", "planned": "September", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "1.3", "topic": "FlowChart", "planned": "September", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "1.4", "topic": "Data Structure", "planned": "September", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "1.5", "topic": "Basic Operations of a Computer", "planned": "September", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "•", "topic": "Computer Software (System Software- Application Software)", "planned": "", "executed": "", "topicStatus": false}, {"sno": "2", "chapter": "Basics Of Programming Of C++", "topicNo": "2.1", "topic": "Introduction", "planned": "Oct", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "2.2", "topic": "Programming Enviroment Of C++", "planned": "Oct", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "2.3", "topic": "C++ Programming Language", "planned": "Oct", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "2.4", "topic": "Constants And Variables", "planned": "Oct", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "2.5", "topic": "Basic Operations of a Computer", "planned": "Oct", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "2.6", "topic": "Computer Software (System Software- Application Software)", "planned": "Oct", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "2.7", "topic": "LAB  WORK", "planned": "Oct", "executed": "", "topicStatus": false}, {"sno": "3", "chapter": "Input / Output Handling In C++", "topicNo": "3.1", "topic": "Basic Structure Of C++", "planned": "September", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "3.2", "topic": "Comment Statement In C++", "planned": "September", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "3.3", "topic": "C++ Programming Language", "planned": "September", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "3.4", "topic": "Input / Output Handling In C++", "planned": "September", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "3.5", "topic": "Operators", "planned": "September", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "3.6", "topic": "LAB  WORK", "planned": "September", "executed": "", "topicStatus": false}, {"sno": "4", "chapter": "Control Structure", "topicNo": "4.1", "topic": "Control Statement", "planned": "November", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "4.2", "topic": "Selection/Decision Making Structure", "planned": "November", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "4.3", "topic": "Iteration / Loop", "planned": "November", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "4.4", "topic": "Jump Statement", "planned": "November", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "4.5", "topic": "LAB  WORK", "planned": "November", "executed": "", "topicStatus": false}, {"sno": "5", "chapter": "Functions", "topicNo": "5.1", "topic": "Introduction To Functions", "planned": "December", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "5.2", "topic": "LAB  WORK", "planned": "December", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "", "topic": "LAB  WORK", "planned": "December", "executed": "", "topicStatus": false}, {"sno": "6", "chapter": "Digital Logic And Design", "topicNo": "6.1", "topic": "Data Presentation In A Computer", "planned": "November", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "6.2", "topic": "Logic Gates", "planned": "November", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "6.3", "topic": "Boolean Algebra", "planned": "November", "executed": "", "topicStatus": false}, {"sno": "7", "chapter": "Introduction To Scratch", "topicNo": "7.1", "topic": "Scratch", "planned": "December", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "7.2", "topic": "Understanding Scratch Enviroment", "planned": "December", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "7.3", "topic": "Developing Program In Scratch", "planned": "December", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "7.4", "topic": "Jump Statement", "planned": "December", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "7.5", "topic": "LAB  WORK", "planned": "December", "executed": "", "topicStatus": false}], "physics": [{"sno": "1", "chapter": "Unit 10: General Waves Properties", "topicNo": "1.1", "topic": "Production and Nature of Waves", "planned": "August", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "1.2", "topic": "Longitudinal and Transverse Waves", "planned": "August", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "1.3", "topic": "Wave Terminology (Amplitude, Period, Frequency, λ)", "planned": "August", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "1.4", "topic": "Ripple Tank: Reflection, Refraction, and Diffraction", "planned": "August", "executed": "", "topicStatus": false}, {"sno": "2", "chapter": "Unit 11: Sound", "topicNo": "2.1", "topic": "Production and Propagation of Sound Waves", "planned": "August", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "2.2", "topic": "Characteristics of Sound (Loudness, Pitch, Quality)", "planned": "August", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "2.3", "topic": "Intensity and Sound Level (Decibel scale)", "planned": "August", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "2.4", "topic": "Reflection (Echo) and Speed of Sound", "planned": "August", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "2.5", "topic": "Audible Frequency Range and Ultrasound", "planned": "August", "executed": "", "topicStatus": false}, {"sno": "3", "chapter": "Unit 12: Electromagnetic Spectrum", "topicNo": "3.1", "topic": "Nature and Properties of Electromagnetic Waves", "planned": "September", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "3.2", "topic": "Components of EM Spectrum (Radio, Micro, Infrared, Visible, UV, X-Rays, Gamma)", "planned": "September", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "3.3", "topic": "Applications and Hazards of EM Radiations", "planned": "September", "executed": "", "topicStatus": false}, {"sno": "4", "chapter": "Unit 13: Geometrical Optics", "topicNo": "4.1", "topic": "Reflection of Light and Spherical Mirrors", "planned": "September", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "4.2", "topic": "Refraction of Light and Total Internal Reflection", "planned": "September", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "4.3", "topic": "Refraction through Lenses and Lens Formula", "planned": "September", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "4.4", "topic": "Defects of Vision and their Correction", "planned": "September", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "4.5", "topic": "Optical Instruments (Microscope, Telescope, Camera)", "planned": "September", "executed": "", "topicStatus": false}, {"sno": "5", "chapter": "Unit 14: Electrostatics", "topicNo": "5.1", "topic": "Production of Electric Charges and Electrostatic Induction", "planned": "October", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "5.2", "topic": "Electroscope and its Applications", "planned": "October", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "5.3", "topic": "Coulomb's Law", "planned": "October", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "5.4", "topic": "Electric Field and Electric Field Intensity", "planned": "October", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "5.5", "topic": "Electrostatic Potential and Capacitors (Parallel plates, Combinations)", "planned": "October", "executed": "", "topicStatus": false}, {"sno": "6", "chapter": "Unit 15: Current Electricity", "topicNo": "6.1", "topic": "Electric Current and Potential Difference", "planned": "October", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "6.2", "topic": "Ohm's Law and Resistance (Factors affecting it)", "planned": "October", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "6.3", "topic": "Series and Parallel Combinations of Resistors", "planned": "October", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "6.4", "topic": "Electrical Energy and Joule's Law", "planned": "October", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "6.5", "topic": "Electric Power, Kilowatt-Hour, and Hazards of Electricity", "planned": "October", "executed": "", "topicStatus": false}, {"sno": "7", "chapter": "Unit 16: Electromagnetism", "topicNo": "7.1", "topic": "Magnetic Effect of a Steady Current (Straight wire, Solenoid)", "planned": "November", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "7.2", "topic": "Force on a Current-Carrying Conductor in a Magnetic Field", "planned": "November", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "7.3", "topic": "DC Motor and Electromagnetic Induction", "planned": "November", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "7.4", "topic": "AC Generator and Transformers (Step-up and Step-down)", "planned": "November", "executed": "", "topicStatus": false}, {"sno": "8", "chapter": "Unit 17: Introductory Electronic", "topicNo": "8.1", "topic": "Thermionic Emission", "planned": "November", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "8.2", "topic": "Investigating the Attributes of Electrons (Cathode Ray Oscilloscope)", "planned": "November", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "8.3", "topic": "Analogue and Digital Electronics", "planned": "November", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "8.4", "topic": "Logic Gates (AND, OR, NOT, NAND, NOR)", "planned": "November", "executed": "", "topicStatus": false}, {"sno": "9", "chapter": "Unit 18: Information & Communication Technology", "topicNo": "9.1", "topic": "Information and Communication Technology (ICT) Systems", "planned": "December", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "9.2", "topic": "Storage Devices (Primary and Secondary)", "planned": "December", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "9.3", "topic": "Transmission of Light Signals through Optical Fibres", "planned": "December", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "9.4", "topic": "Internet, E-mail, and Risks of ICT", "planned": "December", "executed": "", "topicStatus": false}, {"sno": "10", "chapter": "Unit 19: Atomic Structure", "topicNo": "10.1", "topic": "Rutherford and Bohr's Models of the Atom", "planned": "December", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "10.2", "topic": "Atomic Number and Mass Number", "planned": "December", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "10.3", "topic": "Isotopes and their Applications", "planned": "December", "executed": "", "topicStatus": false}, {"sno": "11", "chapter": "Unit 20: Nuclear Structure", "topicNo": "11.1", "topic": "Composition of the Nucleus and Nuclear Forces", "planned": "December", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "11.2", "topic": "Natural Radioactivity (α, β, and γ emissions)", "planned": "December", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "11.3", "topic": "Half-Life and Radioactive Decay", "planned": "December", "executed": "", "topicStatus": false}, {"sno": "", "chapter": "", "topicNo": "11.4", "topic": "Nuclear Fission and Fusion Reactions", "planned": "December", "executed": "", "topicStatus": false}], "pst": [{"sno": "1", "chapter": "Ideological Basis Of Pakistan", "planned": "July", "executed": "", "topicStatus": false}, {"sno": "2", "chapter": "Making of Pakistan", "planned": "August", "executed": "", "topicStatus": false}, {"sno": "3", "chapter": "Constitutional Development In Islamic Republic Of Pakistan", "planned": "September", "executed": "", "topicStatus": false}, {"sno": "4", "chapter": "Land And Climate of Pakistan", "planned": "October", "executed": "", "topicStatus": false}, {"sno": "5", "chapter": "Resources Of Pakistan", "planned": "October", "executed": "", "topicStatus": false}, {"sno": "6", "chapter": "Industrial Development in Pakistan", "planned": "November", "executed": "", "topicStatus": false}, {"sno": "7", "chapter": "Population of Pakistan", "planned": "November", "executed": "", "topicStatus": false}, {"sno": "8", "chapter": "Culture of Pakistan", "planned": "December", "executed": "", "topicStatus": false}, {"sno": "9", "chapter": "Education in Pakistan", "planned": "December", "executed": "", "topicStatus": false}, {"sno": "10", "chapter": "Pakistan- A Welfare State", "planned": "December", "executed": "", "topicStatus": false}, {"sno": "11", "chapter": "Civic Life in Pakistan", "planned": "December", "executed": "", "topicStatus": false}, {"sno": "12", "chapter": "Protection of Human Rights", "planned": "December", "executed": "", "topicStatus": false}, {"sno": "13", "chapter": "Protection of Citizen's Rights and The Role Of Institutions", "planned": "December", "executed": "", "topicStatus": false}], "english": [{"sno": "1", "chp": "1", "name": "VOICE OF GOD", "planned": "JULY", "executed": "", "topicStatus": false}, {"sno": "2", "chp": "2", "name": "THE WISE CALIPH", "planned": "JULY", "executed": "", "topicStatus": false}, {"sno": "3", "chp": "3", "name": "LITTLE THINGS", "planned": "AUG", "executed": "", "topicStatus": false}, {"sno": "4", "chp": "4", "name": "DIGNITY OF WORK", "planned": "JULY", "executed": "", "topicStatus": false}, {"sno": "5", "chp": "5", "name": "SPEAK GENTLY", "planned": "AUG", "executed": "", "topicStatus": false}, {"sno": "6", "chp": "6", "name": "KING BRUCE", "planned": "SEPT", "executed": "", "topicStatus": false}, {"sno": "7", "chp": "7", "name": "THE MAN WHO WINS", "planned": "OCT", "executed": "", "topicStatus": false}, {"sno": "8", "chp": "8", "name": "SOCIAL MEDIA", "planned": "AUG", "executed": "", "topicStatus": false}, {"sno": "9", "chp": "9", "name": "BAD DREAM", "planned": "SEPT", "executed": "", "topicStatus": false}, {"sno": "10", "chp": "10", "name": "JOURNEY TO GORAKH", "planned": "OCT", "executed": "", "topicStatus": false}, {"sno": "11", "chp": "11", "name": "SAFETY MEASURES", "planned": "OCT", "executed": "", "topicStatus": false}, {"sno": "12", "chp": "12", "name": "TENSES", "planned": "SEPT", "executed": "", "topicStatus": false}, {"sno": "13", "chp": "13", "name": "TENSES", "planned": "NOV", "executed": "", "topicStatus": false}, {"sno": "14", "chp": "14", "name": "TENSES", "planned": "NOV", "executed": "", "topicStatus": false}, {"sno": "15", "chp": "15", "name": "LETTER", "planned": "AUG", "executed": "", "topicStatus": false}, {"sno": "16", "chp": "18", "name": "NARRATION", "planned": "OCT", "executed": "", "topicStatus": false}, {"sno": "17", "chp": "19", "name": "NARRATION", "planned": "DEC", "executed": "", "topicStatus": false}, {"sno": "18", "chp": "20", "name": "VOICES", "planned": "NOV", "executed": "", "topicStatus": false}, {"sno": "19", "chp": "21", "name": "VOICES", "planned": "NOV", "executed": "", "topicStatus": false}, {"sno": "20", "chp": "22", "name": "ESSAY WRITING", "planned": "SEPT", "executed": "", "topicStatus": false}, {"sno": "21", "chp": "23", "name": "P.O.S", "planned": "DEC", "executed": "", "topicStatus": false}, {"sno": "22", "chp": "25", "name": "PASSAGE", "planned": "DEC", "executed": "", "topicStatus": false}, {"sno": "23", "chp": "26", "name": "PASSAGE", "planned": "DEC", "executed": "", "topicStatus": false}], "maths": [{"lecture": "1", "chapter": "1", "chapterName": "Sets And Functions", "topic": "Exercise 1.1", "planned": "", "executed": "", "topicStatus": false}, {"lecture": "2", "chapter": "", "chapterName": "", "topic": "Exercise 1.2", "planned": "July-August", "executed": "", "topicStatus": false}, {"lecture": "3", "chapter": "", "chapterName": "", "topic": "Exercise 1.3", "planned": "", "executed": "", "topicStatus": false}, {"lecture": "4", "chapter": "", "chapterName": "", "topic": "Exercise 1.4", "planned": "", "executed": "", "topicStatus": false}, {"lecture": "5", "chapter": "2", "chapterName": "Variation", "topic": "Exercise 2.1", "planned": "", "executed": "", "topicStatus": false}, {"lecture": "6", "chapter": "", "chapterName": "", "topic": "Exercise 2.2", "planned": "", "executed": "", "topicStatus": false}, {"lecture": "7", "chapter": "", "chapterName": "", "topic": "Exercise 2.3", "planned": "", "executed": "", "topicStatus": false}, {"lecture": "8", "chapter": "", "chapterName": "", "topic": "Exercise 2.4", "planned": "August-September", "executed": "", "topicStatus": false}, {"lecture": "9", "chapter": "", "chapterName": "", "topic": "Exercise 2.5", "planned": "", "executed": "", "topicStatus": false}, {"lecture": "10", "chapter": "", "chapterName": "", "topic": "Exercise 2.6", "planned": "", "executed": "", "topicStatus": false}, {"lecture": "11", "chapter": "", "chapterName": "", "topic": "Exercise 2.7", "planned": "", "executed": "", "topicStatus": false}, {"lecture": "12", "chapter": "", "chapterName": "", "topic": "Exercise 2.8", "planned": "", "executed": "", "topicStatus": false}, {"lecture": "13", "chapter": "3", "chapterName": "Matrices and Determinants", "topic": "Exercise 3.1", "planned": "", "executed": "", "topicStatus": false}, {"lecture": "14", "chapter": "", "chapterName": "", "topic": "Exercise 3.2", "planned": "", "executed": "", "topicStatus": false}, {"lecture": "15", "chapter": "", "chapterName": "", "topic": "Exercise 3.3", "planned": "", "executed": "", "topicStatus": false}, {"lecture": "16", "chapter": "", "chapterName": "", "topic": "Exercise 3.4", "planned": "September-October", "executed": "", "topicStatus": false}, {"lecture": "17", "chapter": "", "chapterName": "", "topic": "Exercise 3.5", "planned": "", "executed": "", "topicStatus": false}, {"lecture": "18", "chapter": "", "chapterName": "", "topic": "Exercise 3.6", "planned": "", "executed": "", "topicStatus": false}, {"lecture": "19", "chapter": "", "chapterName": "", "topic": "Exercise 3.7", "planned": "", "executed": "", "topicStatus": false}, {"lecture": "20", "chapter": "4", "chapterName": "Theory of Quadratic Equations", "topic": "Exercise 4.1", "planned": "", "executed": "", "topicStatus": false}, {"lecture": "21", "chapter": "", "chapterName": "", "topic": "Exercise 4.2", "planned": "November", "executed": "", "topicStatus": false}, {"lecture": "22", "chapter": "", "chapterName": "", "topic": "Exercise 4.3", "planned": "", "executed": "", "topicStatus": false}, {"lecture": "23", "chapter": "", "chapterName": "", "topic": "Exercise 4.4", "planned": "", "executed": "", "topicStatus": false}, {"lecture": "24", "chapter": "5", "chapterName": "Partial Fractions", "topic": "Exercise 5.1", "planned": "", "executed": "", "topicStatus": false}, {"lecture": "25", "chapter": "", "chapterName": "", "topic": "Exercise 5.2", "planned": "", "executed": "", "topicStatus": false}, {"lecture": "26", "chapter": "", "chapterName": "", "topic": "Exercise 5.3", "planned": "December", "executed": "", "topicStatus": false}, {"lecture": "27", "chapter": "", "chapterName": "", "topic": "Exercise 5.4", "planned": "", "executed": "", "topicStatus": false}, {"lecture": "28", "chapter": "", "chapterName": "", "topic": "Exercise 5.5", "planned": "", "executed": "", "topicStatus": false}, {"lecture": "29", "chapter": "6", "chapterName": "Basic Statistics", "topic": "Exercise 6.1", "planned": "", "executed": "", "topicStatus": false}, {"lecture": "30", "chapter": "", "chapterName": "", "topic": "Exercise 6.2", "planned": "December", "executed": "", "topicStatus": false}, {"lecture": "31", "chapter": "", "chapterName": "", "topic": "Exercise 6.3", "planned": "", "executed": "", "topicStatus": false}, {"lecture": "32", "chapter": "7", "chapterName": "Pythagoras's Theorm", "topic": "Exercise 7.1", "planned": "", "executed": "", "topicStatus": false}, {"lecture": "33", "chapter": "", "chapterName": "", "topic": "Exercise 7.2", "planned": "", "executed": "", "topicStatus": false}, {"lecture": "34", "chapter": "", "chapterName": "", "topic": "Exercise 7.3", "planned": "August", "executed": "", "topicStatus": false}, {"lecture": "35", "chapter": "", "chapterName": "", "topic": "Exercise 7.4", "planned": "", "executed": "", "topicStatus": false}, {"lecture": "36", "chapter": "", "chapterName": "", "topic": "Exercise 7.5", "planned": "", "executed": "", "topicStatus": false}, {"lecture": "37", "chapter": "8", "chapterName": "Ratio and Proportion", "topic": "Exercise 8.1", "planned": "September", "executed": "", "topicStatus": false}, {"lecture": "38", "chapter": "", "chapterName": "", "topic": "Exercise 8.2", "planned": "", "executed": "", "topicStatus": false}, {"lecture": "39", "chapter": "9", "chapterName": "Chord of a Circle", "topic": "Exercise 9.1", "planned": "September", "executed": "", "topicStatus": false}, {"lecture": "40", "chapter": "", "chapterName": "", "topic": "Exercise 9.2", "planned": "", "executed": "", "topicStatus": false}, {"lecture": "41", "chapter": "10", "chapterName": "Tangent to a Circle", "topic": "Exercise 10.1", "planned": "", "executed": "", "topicStatus": false}, {"lecture": "42", "chapter": "", "chapterName": "", "topic": "Exercise 10.2", "planned": "only important", "executed": "", "topicStatus": false}, {"lecture": "43", "chapter": "", "chapterName": "", "topic": "Exercise 10.3", "planned": "", "executed": "", "topicStatus": false}, {"lecture": "44", "chapter": "11", "chapterName": "Chord and Arcs", "topic": "Exercise 11.1", "planned": "only important", "executed": "", "topicStatus": false}, {"lecture": "45", "chapter": "12", "chapterName": "Angle in a Segment of a Circle", "topic": "Exercise 12.1", "planned": "only important", "executed": "", "topicStatus": false}, {"lecture": "46", "chapter": "13", "chapterName": "Partial Geometry-Circle", "topic": "Exercise 13.1", "planned": "", "executed": "", "topicStatus": false}, {"lecture": "47", "chapter": "", "chapterName": "", "topic": "Exercise 13.2", "planned": "October", "executed": "", "topicStatus": false}, {"lecture": "48", "chapter": "", "chapterName": "", "topic": "Exercise 13.3", "planned": "", "executed": "", "topicStatus": false}, {"lecture": "49", "chapter": "14", "chapterName": "Introduction To Trignometry", "topic": "Exercise 14.1", "planned": "", "executed": "", "topicStatus": false}, {"lecture": "50", "chapter": "", "chapterName": "", "topic": "Exercise 14.2", "planned": "November", "executed": "", "topicStatus": false}, {"lecture": "51", "chapter": "", "chapterName": "", "topic": "Exercise 14.3", "planned": "", "executed": "", "topicStatus": false}], "sindhi": [{"chapterNo": "1", "chapterTitle": "حجة الوداع وارو خطبو", "unit": "1.1", "content": "گهڻ چونڊائتا سوال", "month": "جولائي", "date": "", "topicStatus": false}, {"chapterNo": "1", "chapterTitle": "", "unit": "1.2", "content": "سوال جواب", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "1", "chapterTitle": "", "unit": "1.3", "content": "الفاظ معنیٰ جملا", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "1", "chapterTitle": "", "unit": "1.4", "content": "خلاصو", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "1", "chapterTitle": "", "unit": "1.5", "content": "پیراگراف", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "2", "chapterTitle": "حضرت سلمان فارسي رضي الله تعالیٰ عنہ", "unit": "2.1", "content": "گهڻ چونڊائتا سوال", "month": "جولائي", "date": "", "topicStatus": false}, {"chapterNo": "2", "chapterTitle": "", "unit": "2.2", "content": "سوال جواب", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "2", "chapterTitle": "", "unit": "2.3", "content": "الفاظ معنیٰ جملا", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "2", "chapterTitle": "", "unit": "2.4", "content": "خلاصو", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "2", "chapterTitle": "", "unit": "2.5", "content": "پیراگراف", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "3", "chapterTitle": "حضرت امام جعفر صادق علیہ السلام", "unit": "3.1", "content": "گهڻ چونڊائتا سوال", "month": "اگست", "date": "", "topicStatus": false}, {"chapterNo": "3", "chapterTitle": "", "unit": "3.2", "content": "سوال جواب", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "3", "chapterTitle": "", "unit": "3.3", "content": "الفاظ معنیٰ جملا", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "3", "chapterTitle": "", "unit": "3.4", "content": "خلاصو", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "3", "chapterTitle": "", "unit": "3.5", "content": "پیراگراف", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "4", "chapterTitle": "قائد اعظم رحمت الله علیہ جا ارشاد", "unit": "4.1", "content": "گهڻ چونڊائتا سوال", "month": "اگست", "date": "", "topicStatus": false}, {"chapterNo": "4", "chapterTitle": "", "unit": "4.2", "content": "سوال جواب", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "4", "chapterTitle": "", "unit": "4.3", "content": "الفاظ معنیٰ جملا", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "4", "chapterTitle": "", "unit": "4.4", "content": "خلاصو", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "4", "chapterTitle": "", "unit": "4.5", "content": "پیراگراف", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "5", "chapterTitle": "اتحاد، تنظیم عہ یقین محکم", "unit": "5.1", "content": "گهڻ چونڊائتا سوال", "month": "اگست", "date": "", "topicStatus": false}, {"chapterNo": "5", "chapterTitle": "", "unit": "5.2", "content": "سوال جواب", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "5", "chapterTitle": "", "unit": "5.3", "content": "الفاظ معنیٰ جملا", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "5", "chapterTitle": "", "unit": "5.4", "content": "خلاصو", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "5", "chapterTitle": "", "unit": "5.5", "content": "پیراگراف", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "6", "chapterTitle": "مولانا دین محمد وفائي", "unit": "6.1", "content": "گهڻ چونڊائتا سوال", "month": "اگست", "date": "", "topicStatus": false}, {"chapterNo": "6", "chapterTitle": "", "unit": "6.2", "content": "سوال جواب", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "6", "chapterTitle": "", "unit": "6.3", "content": "الفاظ معنیٰ جملا", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "6", "chapterTitle": "", "unit": "6.4", "content": "خلاصو", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "6", "chapterTitle": "", "unit": "6.5", "content": "پیراگراف", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "7", "chapterTitle": "ماڻي خيري", "unit": "7.1", "content": "گهڻ چونڊائتا سوال", "month": "ستمبر", "date": "", "topicStatus": false}, {"chapterNo": "7", "chapterTitle": "", "unit": "7.2", "content": "سوال جواب", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "7", "chapterTitle": "", "unit": "7.3", "content": "الفاظ معنیٰ جملا", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "7", "chapterTitle": "", "unit": "7.4", "content": "خلاصو", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "7", "chapterTitle": "", "unit": "7.5", "content": "پیراگراف", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "8", "chapterTitle": "هنر دولت آهي", "unit": "8.1", "content": "گهڻ چونڊائتا سوال", "month": "ستمبر", "date": "", "topicStatus": false}, {"chapterNo": "8", "chapterTitle": "", "unit": "8.2", "content": "سوال جواب", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "8", "chapterTitle": "", "unit": "8.3", "content": "الفاظ معنیٰ جملا", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "8", "chapterTitle": "", "unit": "8.4", "content": "خلاصو", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "8", "chapterTitle": "", "unit": "8.5", "content": "پیراگراف", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "9", "chapterTitle": "خط", "unit": "9.1", "content": "گهڻ چونڊائتا سوال", "month": "ستمبر", "date": "", "topicStatus": false}, {"chapterNo": "9", "chapterTitle": "", "unit": "9.2", "content": "سوال جواب", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "9", "chapterTitle": "", "unit": "9.3", "content": "الفاظ معنیٰ جملا", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "9", "chapterTitle": "", "unit": "9.4", "content": "خلاصو", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "9", "chapterTitle": "", "unit": "9.5", "content": "پیراگراف", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "10", "chapterTitle": "بین الاقوامي عدالت", "unit": "10.1", "content": "گهڻ چونڊائتا سوال", "month": "ستمبر", "date": "", "topicStatus": false}, {"chapterNo": "10", "chapterTitle": "", "unit": "10.2", "content": "سوال جواب", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "10", "chapterTitle": "", "unit": "10.3", "content": "الفاظ معنیٰ جملا", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "10", "chapterTitle": "", "unit": "10.4", "content": "خلاصو", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "10", "chapterTitle": "", "unit": "10.5", "content": "پیراگراف", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "11", "chapterTitle": "اجرڪ", "unit": "11.1", "content": "گهڻ چونڊائتا سوال", "month": "اکتوبر", "date": "", "topicStatus": false}, {"chapterNo": "11", "chapterTitle": "", "unit": "11.2", "content": "سوال جواب", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "11", "chapterTitle": "", "unit": "11.3", "content": "الفاظ معنیٰ جملا", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "11", "chapterTitle": "", "unit": "11.4", "content": "خلاصو", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "11", "chapterTitle": "", "unit": "11.5", "content": "پیراگراف", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "12", "chapterTitle": "میرن جي دربار", "unit": "12.1", "content": "گهڻ چونڊائتا سوال", "month": "اکتوبر", "date": "", "topicStatus": false}, {"chapterNo": "12", "chapterTitle": "", "unit": "12.2", "content": "سوال جواب", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "12", "chapterTitle": "", "unit": "12.3", "content": "الفاظ معنیٰ جملا", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "12", "chapterTitle": "", "unit": "12.4", "content": "خلاصو", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "12", "chapterTitle": "", "unit": "12.5", "content": "پیراگراف", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "13", "chapterTitle": "ڪینجهر ڏند", "unit": "13.1", "content": "گهڻ چونڊائتا سوال", "month": "اکتوبر", "date": "", "topicStatus": false}, {"chapterNo": "13", "chapterTitle": "", "unit": "13.2", "content": "سوال جواب", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "13", "chapterTitle": "", "unit": "13.3", "content": "الفاظ معنیٰ جملا", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "13", "chapterTitle": "", "unit": "13.4", "content": "خلاصو", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "13", "chapterTitle": "", "unit": "13.5", "content": "پیراگراف", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "14", "chapterTitle": "سنڌي ادب جي مختصر تاریخ", "unit": "14.1", "content": "گهڻ چونڊائتا سوال", "month": "اکتوبر", "date": "", "topicStatus": false}, {"chapterNo": "14", "chapterTitle": "", "unit": "14.2", "content": "سوال جواب", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "14", "chapterTitle": "", "unit": "14.3", "content": "الفاظ معنیٰ جملا", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "14", "chapterTitle": "", "unit": "14.4", "content": "خلاصو", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "14", "chapterTitle": "", "unit": "14.5", "content": "پیراگراف", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "15", "chapterTitle": "رد بچاء", "unit": "15.1", "content": "گهڻ چونڊائتا سوال", "month": "نومبر", "date": "", "topicStatus": false}, {"chapterNo": "15", "chapterTitle": "", "unit": "15.2", "content": "سوال جواب", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "15", "chapterTitle": "", "unit": "15.3", "content": "الفاظ معنیٰ جملا", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "15", "chapterTitle": "", "unit": "15.4", "content": "خلاصو", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "15", "chapterTitle": "", "unit": "15.5", "content": "پیراگراف", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "16", "chapterTitle": "بہ ته بارهن", "unit": "16.1", "content": "گهڻ چونڊائتا سوال", "month": "نومبر", "date": "", "topicStatus": false}, {"chapterNo": "16", "chapterTitle": "", "unit": "16.2", "content": "سوال جواب", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "16", "chapterTitle": "", "unit": "16.3", "content": "الفاظ معنیٰ جملا", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "16", "chapterTitle": "", "unit": "16.4", "content": "خلاصو", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "16", "chapterTitle": "", "unit": "16.5", "content": "پیراگراف", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "17", "chapterTitle": "نصیر پور", "unit": "17.1", "content": "گهڻ چونڊائتا سوال", "month": "نومبر", "date": "", "topicStatus": false}, {"chapterNo": "17", "chapterTitle": "", "unit": "17.2", "content": "سوال جواب", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "17", "chapterTitle": "", "unit": "17.3", "content": "الفاظ معنیٰ جملا", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "17", "chapterTitle": "", "unit": "17.4", "content": "خلاصو", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "17", "chapterTitle": "", "unit": "17.5", "content": "پیراگراف", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "18", "chapterTitle": "جهڙو راج تهڙو پاڪ", "unit": "18.1", "content": "گهڻ چونڊائتا سوال", "month": "نومبر", "date": "", "topicStatus": false}, {"chapterNo": "18", "chapterTitle": "", "unit": "18.2", "content": "سوال جواب", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "18", "chapterTitle": "", "unit": "18.3", "content": "الفاظ معنیٰ جملا", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "18", "chapterTitle": "", "unit": "18.4", "content": "خلاصو", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "18", "chapterTitle": "", "unit": "18.5", "content": "پیراگراف", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "19", "chapterTitle": "آهیون الف آسري محمد محیوسون", "unit": "19.1", "content": "گهڻ چونڊائتا سوال", "month": "اگست", "date": "", "topicStatus": false}, {"chapterNo": "19", "chapterTitle": "", "unit": "19.2", "content": "سوال جواب", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "19", "chapterTitle": "", "unit": "19.3", "content": "الفاظ معنیٰ جملا", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "19", "chapterTitle": "", "unit": "19.4", "content": "مرڪزي خيال", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "19", "chapterTitle": "", "unit": "19.5", "content": "اشعار / بند جي تشریح", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "20", "chapterTitle": "نیکي", "unit": "20.1", "content": "گهڻ چونڊائتا سوال", "month": "اگست", "date": "", "topicStatus": false}, {"chapterNo": "20", "chapterTitle": "", "unit": "20.2", "content": "سوال جواب", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "20", "chapterTitle": "", "unit": "20.3", "content": "الفاظ معنیٰ جملا", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "20", "chapterTitle": "", "unit": "20.4", "content": "مرڪزي خيال", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "20", "chapterTitle": "", "unit": "20.5", "content": "اشعار / بند جي تشریح", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "21", "chapterTitle": "دعا", "unit": "21.1", "content": "گهڻ چونڊائتا سوال", "month": "ستمبر", "date": "", "topicStatus": false}, {"chapterNo": "21", "chapterTitle": "", "unit": "21.2", "content": "سوال جواب", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "21", "chapterTitle": "", "unit": "21.3", "content": "الفاظ معنیٰ جملا", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "21", "chapterTitle": "", "unit": "21.4", "content": "مرڪزي خيال", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "21", "chapterTitle": "", "unit": "21.5", "content": "اشعار / بند جي تشریح", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "22", "chapterTitle": "سچل سرمست", "unit": "22.1", "content": "گهڻ چونڊائتا سوال", "month": "ستمبر", "date": "", "topicStatus": false}, {"chapterNo": "22", "chapterTitle": "", "unit": "22.2", "content": "سوال جواب", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "22", "chapterTitle": "", "unit": "22.3", "content": "الفاظ معنیٰ جملا", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "22", "chapterTitle": "", "unit": "22.4", "content": "مرڪزي خيال", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "22", "chapterTitle": "", "unit": "22.5", "content": "اشعار / بند جي تشریح", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "23", "chapterTitle": "ذینو", "unit": "23.1", "content": "گهڻ چونڊائتا سوال", "month": "اکتوبر", "date": "", "topicStatus": false}, {"chapterNo": "23", "chapterTitle": "", "unit": "23.2", "content": "سوال جواب", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "23", "chapterTitle": "", "unit": "23.3", "content": "الفاظ معنیٰ جملا", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "23", "chapterTitle": "", "unit": "23.4", "content": "مرڪزي خيال", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "23", "chapterTitle": "", "unit": "23.5", "content": "اشعار / بند جي تشریح", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "24", "chapterTitle": "بٽایون سک جو ڪوسنسار", "unit": "24.1", "content": "گهڻ چونڊائتا سوال", "month": "اکتوبر", "date": "", "topicStatus": false}, {"chapterNo": "24", "chapterTitle": "", "unit": "24.2", "content": "سوال جواب", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "24", "chapterTitle": "", "unit": "24.3", "content": "الفاظ معنیٰ جملا", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "24", "chapterTitle": "", "unit": "24.4", "content": "مرڪزي خيال", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "24", "chapterTitle": "", "unit": "24.5", "content": "اشعار / بند جي تشریح", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "25", "chapterTitle": "پیارا وطن", "unit": "25.1", "content": "گهڻ چونڊائتا سوال", "month": "نومبر", "date": "", "topicStatus": false}, {"chapterNo": "25", "chapterTitle": "", "unit": "25.2", "content": "سوال جواب", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "25", "chapterTitle": "", "unit": "25.3", "content": "الفاظ معنیٰ جملا", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "25", "chapterTitle": "", "unit": "25.4", "content": "مرڪزي خيال", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "25", "chapterTitle": "", "unit": "25.5", "content": "اشعار / بند جي تشریح", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "26", "chapterTitle": "هاري", "unit": "26.1", "content": "گهڻ چونڊائتا سوال", "month": "نومبر", "date": "", "topicStatus": false}, {"chapterNo": "26", "chapterTitle": "", "unit": "26.2", "content": "سوال جواب", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "26", "chapterTitle": "", "unit": "26.3", "content": "الفاظ معنیٰ جملا", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "26", "chapterTitle": "", "unit": "26.4", "content": "مرڪزي خيال", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "26", "chapterTitle": "", "unit": "26.5", "content": "اشعار / بند جي تشریح", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "27", "chapterTitle": "خط", "unit": "27.1", "content": "ڪراچي ٿي گهمڻ جي دعوت", "month": "اکتوبر", "date": "", "topicStatus": false}, {"chapterNo": "27", "chapterTitle": "", "unit": "27.2", "content": "پڙهائي جي خرچ لاءِ رپين جي گهر ڪريو", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "27", "chapterTitle": "", "unit": "27.3", "content": "پهریون نمبر آچڻ تي مبارڪباد", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "27", "chapterTitle": "", "unit": "27.4", "content": "هم نصابي سرگرمیون ۾ حصو وٺڻ جي نصیحت", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "27", "chapterTitle": "", "unit": "27.5", "content": "پڙهائي ۾ دلچسپي وٺڻ لاءِ نصیحت", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "28", "chapterTitle": "درخواست", "unit": "28.1", "content": "في معاف ڪرڻ لاءِ", "month": "نومبر", "date": "", "topicStatus": false}, {"chapterNo": "28", "chapterTitle": "", "unit": "28.2", "content": "ٽن ڏینهن جي موڪل لاءِ", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "28", "chapterTitle": "", "unit": "28.3", "content": "سنڌي ثقافت جو ڏینهن ملهائڻ لاءِ", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "28", "chapterTitle": "", "unit": "28.4", "content": "شاه عبد اللطیف جو ڏینهن ملهائڻ لاءِ", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "28", "chapterTitle": "", "unit": "28.5", "content": "ٻارن جو عالمي ڏینهن ملهائڻ لاءِ", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "28", "chapterTitle": "", "unit": "28.6", "content": "پڪنڪ ملهائڻ لاءِ", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "28", "chapterTitle": "", "unit": "28.7", "content": "چندو گڏ ڪرڻ جي اجازت لاءِ", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "29", "chapterTitle": "الفاظ ضد", "unit": "29.1", "content": "ڪم از ڪم پڇيل 10 سال", "month": "اکتوبر", "date": "", "topicStatus": false}, {"chapterNo": "30", "chapterTitle": "واحد جمع", "unit": "30.1", "content": "ڪم از ڪم پڇيل 10 سال", "month": "اکتوبر", "date": "", "topicStatus": false}, {"chapterNo": "31", "chapterTitle": "مذڪر مونث", "unit": "31.1", "content": "ڪم از ڪم پڇيل 10 سال", "month": "نومبر", "date": "", "topicStatus": false}, {"chapterNo": "32", "chapterTitle": "مضمون", "unit": "32.1", "content": "پسندیده شخصیت / شاعر / صوفي شاعر", "month": "ڊسمبر", "date": "", "topicStatus": false}, {"chapterNo": "32", "chapterTitle": "", "unit": "32.2", "content": "قومي هیرو", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "32", "chapterTitle": "", "unit": "32.3", "content": "ڪلفٽن جو سیر", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "32", "chapterTitle": "", "unit": "32.4", "content": "بهار جي موسم", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "32", "chapterTitle": "", "unit": "32.5", "content": "تندرستي هزار نعمت آهي", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "32", "chapterTitle": "", "unit": "32.6", "content": "سائنس جا ڪرشما", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "32", "chapterTitle": "", "unit": "32.7", "content": "ڪمپیوٽر جا فائدا", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "32", "chapterTitle": "", "unit": "32.8", "content": "محنت جي عظمت", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "32", "chapterTitle": "", "unit": "32.9", "content": "قومي ایڪو", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "32", "chapterTitle": "", "unit": "32.10", "content": "وطن جي حب", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "32", "chapterTitle": "", "unit": "32.11", "content": "پسندیده ڪتاب", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "32", "chapterTitle": "", "unit": "32.12", "content": "علم وڏي دولت آهي", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "32", "chapterTitle": "", "unit": "32.13", "content": "وقت جي پابندي", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "32", "chapterTitle": "", "unit": "32.14", "content": "ڪراچي شهر / اسان جو شهر", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "32", "chapterTitle": "", "unit": "32.15", "content": "اسان جو وطن", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "33", "chapterTitle": "اصطلاح جي معنیٰ", "unit": "33.1", "content": "اصطلاح جي معنیٰ", "month": "نومبر", "date": "", "topicStatus": false}, {"chapterNo": "34", "chapterTitle": "تعریف", "unit": "34.1", "content": "حرف ندا", "month": "ڊسمبر", "date": "", "topicStatus": false}, {"chapterNo": "34", "chapterTitle": "", "unit": "34.2", "content": "حرف جر", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "34", "chapterTitle": "", "unit": "34.3", "content": "حرف جملو", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "34", "chapterTitle": "", "unit": "34.4", "content": "صفت", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "34", "chapterTitle": "", "unit": "34.5", "content": "ظرف", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "34", "chapterTitle": "", "unit": "34.6", "content": "فعل", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "34", "chapterTitle": "", "unit": "34.7", "content": "اسم", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "34", "chapterTitle": "", "unit": "34.8", "content": "اسم خاص", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "34", "chapterTitle": "", "unit": "34.9", "content": "ضمیر", "month": "", "date": "", "topicStatus": false}, {"chapterNo": "34", "chapterTitle": "", "unit": "34.10", "content": "ضمیر متڪلم", "month": "", "date": "", "topicStatus": false}]};
 
 // Column configs per subject for the Course Breakup section (Academia / Campus Incharge).
@@ -3010,6 +3170,7 @@ let STATE = {
   reportMeta: {cls:'', year:''}, // {cls, year} shown in the Student Progress Report heading
   progressMeta: {cls:'', year:''}, // {cls, year} shown in the Subjects & Marks — Progress heading
   yearlyAssessment: defaultYearlyAssessment(), // {title, subtitle, subjects:[{name,day}], rows:[{type:'label'|'data', ...}], note} — Yearly Assessment Schedule (Students tab, Campus Incharge)
+  paperTimetable: defaultPaperTimetable(), // {month, subjects:[{name, day, date}]} — Monthly Paper Timetable (Campus Incharge / Examination Incharge)
   courseBreakup: defaultCourseBreakup(), // {chemistry:[...], computer:[...], pst:[...], english:[...], maths:[...], physics:[...], sindhi:[...]} — Course Breakup (Academia / Campus Incharge)
   courseBreakupMeta: {cls:'', year:''}, // {cls, year} shown in the Course Breakup print/download heading
   teacherNamesSwapped: false, // one-time flag: have Junior/Senior teacher names already been swapped back to correct?
@@ -3022,7 +3183,11 @@ let STATE = {
   awardList: [], // {id, roll, name, marks} — one row per student on the Award List (every panel)
   invigilationMeta: {cls:'', session:'', month:'', year:''}, // class/session/month shown in the Invigilation List heading
   invigilationList: [], // {id, date, day, subject, invigilator} — one row per exam date on the duty roster (Campus Incharge / Examination Incharge)
-  invigilationNotes: DEFAULT_INVIGILATION_NOTES // free-text rules block printed below the invigilation table
+  invigilationNotes: DEFAULT_INVIGILATION_NOTES, // free-text rules block printed below the invigilation table
+  fund: [], // {id, date, description, credit, debit, contribution, total, current} — one row per ledger entry (Administrator / Campus Incharge)
+  fundSeeded: false, // one-time flag: has the ledger already been pre-filled with 50 blank rows to match the original spreadsheet?
+  deposit: [], // {id, date, day, name, roll, fixDeposit, notesFees, total} — one row per deposit/notes-fee entry (Administrator / Campus Incharge)
+  depositSeeded: false // one-time flag: has the deposit record already been pre-filled to match the original spreadsheet?
 };
 
 // Guaranteed fallback logo for every PDF/print across every panel (Admin,
@@ -3055,6 +3220,7 @@ function applyParsedState(parsed){
   STATE.reportMeta = parsed.reportMeta || {cls:'', year:''};
   STATE.progressMeta = parsed.progressMeta || {cls:'', year:''};
   STATE.yearlyAssessment = parsed.yearlyAssessment || defaultYearlyAssessment();
+  STATE.paperTimetable = parsed.paperTimetable || defaultPaperTimetable();
   STATE.courseBreakup = parsed.courseBreakup || defaultCourseBreakup();
   STATE.courseBreakupMeta = parsed.courseBreakupMeta || {cls:'', year:''};
   STATE.teacherNamesSwapped = parsed.teacherNamesSwapped || false;
@@ -3077,6 +3243,10 @@ function applyParsedState(parsed){
   STATE.invigilationMeta = parsed.invigilationMeta || {cls:'', session:'', month:'', year:''};
   STATE.invigilationList = parsed.invigilationList || [];
   STATE.invigilationNotes = (typeof parsed.invigilationNotes === 'string' && parsed.invigilationNotes) ? parsed.invigilationNotes : DEFAULT_INVIGILATION_NOTES;
+  STATE.fund = parsed.fund || [];
+  STATE.fundSeeded = parsed.fundSeeded || false;
+  STATE.deposit = parsed.deposit || [];
+  STATE.depositSeeded = parsed.depositSeeded || false;
 }
 
 function loadStateFromLocalStorage(){
@@ -3235,6 +3405,49 @@ function seedDefaultStudentsData(){
   saveState();
 }
 
+// One-time seed: pre-fill the Fund Account ledger with 50 blank rows, matching
+// the original spreadsheet (S.No 1–50, everything else blank) so Admin /
+// Campus Incharge see the same row count as the source file on first load.
+function seedDefaultFund(){
+  if(STATE.fundSeeded) return; // already loaded once — never re-seed over anyone's own edits/deletions
+  if(!STATE.fund || STATE.fund.length === 0){
+    STATE.fund = [];
+    for(let i = 0; i < 50; i++){
+      STATE.fund.push({id: uid('fund'), date:'', description:'', credit:'', debit:'', contribution:'', total:'', current:''});
+    }
+  }
+  STATE.fundSeeded = true;
+  saveState();
+}
+
+// The 7 students from the original Deposit Record spreadsheet, 5 rows each
+// (Fix Deposit checked only on the first row of each student's block) —
+// matches the source file exactly so Admin / Campus Incharge see the same
+// starting data on first load.
+const DEFAULT_DEPOSIT_STUDENTS = [
+  {name:'Shuja Haider', roll:'PEC-07-01'},
+  {name:'S.M Baqir Abbas Rizvi', roll:'PEC-07-02'},
+  {name:'M. Mehdi Haider', roll:'PEC-07-03'},
+  {name:'S.M Irteza Ali', roll:'PEC-07-04'},
+  {name:'S.M Murtaza Ali', roll:'PEC-07-05'},
+  {name:'S.M Baqir Abidi', roll:'PEC-07-06'},
+  {name:'S Mehdi Hussain', roll:'PEC-07-07'}
+];
+
+function seedDefaultDeposit(){
+  if(STATE.depositSeeded) return; // already loaded once — never re-seed over anyone's own edits/deletions
+  if(!STATE.deposit || STATE.deposit.length === 0){
+    STATE.deposit = [];
+    DEFAULT_DEPOSIT_STUDENTS.forEach(stu => {
+      for(let i = 0; i < 5; i++){
+        STATE.deposit.push({id: uid('dep'), date:'', day:'', name:stu.name, roll:stu.roll, fixDeposit: i === 0, notesFees:'', total:''});
+      }
+    });
+  }
+  STATE.depositSeeded = true;
+  saveState();
+}
+
 // The 7 core subjects with their Junior/Senior Teacher names. Runs once,
 // AFTER loadState() (so it isn't wiped out by whatever was already saved
 // in the database/localStorage) — fills in any of these 7 subjects that
@@ -3334,6 +3547,7 @@ document.getElementById('resetAllDataBtn').addEventListener('click', function(){
   STATE.courseProgressMeta = {cls:'', year:'', month:''};
   STATE.timetable = [];
   STATE.timetableMeta = {cls:'', year:''};
+  STATE.paperTimetable = defaultPaperTimetable();
   STATE.monthlyAttendanceMeta = {cls:'', year:''};
   STATE.reportMeta = {cls:'', year:''};
   STATE.progressMeta = {cls:'', year:''};
@@ -3356,11 +3570,11 @@ let adminUnlocked = true;
    Reached via index.html, which links here with a ?role= query parameter.
    Each role sees only the sections relevant to it; Campus Incharge sees everything. */
 const ROLE_TABS = {
-  admin:       ['tab-attendance','tab-timetable','tab-students-data','tab-mom','tab-awardlist'],
+  admin:       ['tab-attendance','tab-timetable','tab-students-data','tab-mom','tab-awardlist','tab-fund','tab-deposit'],
   academia:    ['tab-courseprogress','tab-timetable','tab-coursebreakup','tab-mom','tab-awardlist'],
-  incharge:    ['tab-students','tab-subjects','tab-report','tab-ranking','tab-overview','tab-courseprogress','tab-attendance','tab-timetable','tab-coursebreakup','tab-papers','tab-students-data','tab-mom','tab-awardlist','tab-invigilation'],
+  incharge:    ['tab-students','tab-subjects','tab-report','tab-ranking','tab-overview','tab-courseprogress','tab-attendance','tab-timetable','tab-papertimetable','tab-coursebreakup','tab-papers','tab-students-data','tab-mom','tab-awardlist','tab-invigilation','tab-fund','tab-deposit'],
   teachers:    ['tab-timetable','tab-papers','tab-mom','tab-awardlist'],
-  examination: ['tab-subjects','tab-timetable','tab-mom','tab-awardlist','tab-invigilation']
+  examination: ['tab-subjects','tab-timetable','tab-papertimetable','tab-mom','tab-awardlist','tab-invigilation']
 };
 const roleParam = new URLSearchParams(window.location.search).get('role');
 const allowedTabs = ROLE_TABS[roleParam] || null;
@@ -3458,6 +3672,70 @@ if(allowedTabs){
   }
 }
 
+/* ---------- View-only mode (Campus Incharge, opened with the read-only access password) ----------
+   Same panel, same data, but nothing can be added, edited, deleted, saved,
+   or imported — every button and editable field inside the panel is
+   disabled. Sidebar tab navigation and the basic display toggles (theme,
+   mobile menu) keep working since they don't touch any data. */
+(function(){
+  const viewOnlyParam = new URLSearchParams(window.location.search).get('viewonly');
+  if(viewOnlyParam !== '1') return;
+
+  document.documentElement.classList.add('pec-view-only');
+
+  const roleBadge = document.getElementById('roleBadge');
+  if(roleBadge){
+    roleBadge.textContent = 'Campus Incharge Panel — View Only';
+    roleBadge.classList.add('visible');
+  }
+
+  // These stay active in view-only mode: they only change what's shown on
+  // screen (which tab, dark/light mode, mobile drawer) and never touch data.
+  const VIEW_ONLY_SAFE_IDS = new Set(['mobileMenuToggle', 'themeToggleBtn']);
+
+  // Student Report tab: choosing which student to look at is a "view"
+  // action, not an edit — keep this selector usable so the report itself
+  // can still be browsed. (Class/Year filters and "+ Add New Student" stay
+  // disabled since those save data.)
+  const VIEW_ONLY_SAFE_SELECT_IDS = new Set(['reportStudentSelect']);
+
+  function lockDownViewOnly(){
+    const scope = document.querySelector('main.main-content');
+    if(!scope) return;
+
+    scope.querySelectorAll('button').forEach(btn=>{
+      if(btn.classList.contains('tab-btn')) return;
+      if(VIEW_ONLY_SAFE_IDS.has(btn.id)) return;
+      if(btn.disabled) return;
+      btn.disabled = true;
+      btn.setAttribute('aria-disabled', 'true');
+      btn.title = 'View only — this access level cannot make changes';
+    });
+
+    scope.querySelectorAll('input, select, textarea').forEach(el=>{
+      if(VIEW_ONLY_SAFE_SELECT_IDS.has(el.id)) return;
+      if(el.disabled) return;
+      el.disabled = true;
+    });
+
+    scope.querySelectorAll('form').forEach(f=>{
+      if(f.dataset.viewOnlyLocked) return;
+      f.dataset.viewOnlyLocked = '1';
+      f.addEventListener('submit', e=>{ e.preventDefault(); e.stopPropagation(); });
+    });
+  }
+
+  lockDownViewOnly();
+
+  // The panel rebuilds tables/forms dynamically (tab switches, data loads,
+  // etc.), which would otherwise re-introduce live buttons/fields — re-lock
+  // after every such change.
+  const scope = document.querySelector('main.main-content');
+  if(scope){
+    new MutationObserver(lockDownViewOnly).observe(scope, { childList: true, subtree: true });
+  }
+})();
+
 // ---------- Mobile drawer (hamburger menu) ----------
 const mobileMenuToggle = document.getElementById('mobileMenuToggle');
 const sidebarOverlay = document.getElementById('sidebarOverlay');
@@ -3517,6 +3795,9 @@ document.querySelectorAll('.tab-btn').forEach(btn=>{
     if(btn.dataset.tab === 'tab-coursebreakup'){ renderCourseBreakup(); }
     if(btn.dataset.tab === 'tab-awardlist'){ renderAwardList(); }
     if(btn.dataset.tab === 'tab-invigilation'){ renderInvigilationList(); }
+    if(btn.dataset.tab === 'tab-fund'){ renderFund(); }
+    if(btn.dataset.tab === 'tab-deposit'){ renderDeposit(); }
+    if(btn.dataset.tab === 'tab-papertimetable'){ renderPaperTimetable(); }
   });
 });
 
@@ -8369,6 +8650,456 @@ document.getElementById('ivDownloadPdfBtn').addEventListener('click', () => {
 });
 
 /* ============================================================
+   SECTION 15: FUND ACCOUNT — tab-fund
+   (Administrator and Campus Incharge panels only)
+   ============================================================ */
+let fundEditMode = false;
+const FUND_COLUMNS = [
+  {key:'date', label:'Date', width:'140px', type:'date'},
+  {key:'description', label:'Description', width:'', type:'text'},
+  {key:'credit', label:'Credit', width:'110px', type:'text'},
+  {key:'debit', label:'Debit', width:'110px', type:'text'},
+  {key:'contribution', label:'Contribution', width:'120px', type:'text'},
+  {key:'total', label:'Total', width:'110px', type:'text'},
+  {key:'current', label:'Current', width:'110px', type:'text'}
+];
+
+function fundUpdateEditToggleBtn(){
+  const btn = document.getElementById('fundEditToggleBtn');
+  const addWrap = document.getElementById('fundAddRowWrap');
+  if(!btn) return;
+  if(fundEditMode){
+    btn.textContent = '🔓 Editing — click to lock';
+    btn.classList.add('cb-edit-active');
+  }else{
+    btn.textContent = '✏️ Edit';
+    btn.classList.remove('cb-edit-active');
+  }
+  if(addWrap) addWrap.style.display = fundEditMode ? 'inline-flex' : 'none';
+}
+
+function renderFund(){
+  const wrap = document.getElementById('fundTableWrap');
+  if(!wrap) return;
+  if(!STATE.fund) STATE.fund = [];
+  const rows = STATE.fund;
+
+  if(rows.length === 0){
+    wrap.innerHTML = '<div class="empty-state"><div class="big">No ledger rows yet</div>Click "Edit" then "+ Add Row" to start the Fund Account.</div>';
+    fundUpdateEditToggleBtn();
+    return;
+  }
+
+  let html = '<table class="cb-table"><thead><tr><th style="width:50px;">S.No</th>';
+  FUND_COLUMNS.forEach(col => { html += `<th${col.width ? ` style="width:${col.width};"` : ''}>${col.label}</th>`; });
+  html += '<th style="width:40px;"></th></tr></thead><tbody>';
+
+  rows.forEach((row, rIdx) => {
+    html += '<tr>';
+    html += `<td>${rIdx + 1}</td>`;
+    FUND_COLUMNS.forEach(col => {
+      if(col.type === 'date'){
+        html += `<td><input type="date" data-row="${rIdx}" data-key="${col.key}" value="${escapeHtml(row[col.key] || '')}" ${fundEditMode ? '' : 'disabled'} style="width:100%;border:none;background:transparent;color:inherit;font:inherit;padding:2px;"></td>`;
+      }else{
+        html += `<td contenteditable="${fundEditMode}" data-row="${rIdx}" data-key="${col.key}">${escapeHtml(row[col.key] || '')}</td>`;
+      }
+    });
+    html += `<td>${fundEditMode ? `<button type="button" class="cb-del-row" data-row="${rIdx}" title="Delete row">🗑️</button>` : ''}</td>`;
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  wrap.innerHTML = html;
+
+  fundUpdateEditToggleBtn();
+
+  if(!fundEditMode) return; // locked — nothing below is interactive until Edit is clicked
+
+  wrap.querySelectorAll('td[contenteditable="true"]').forEach(td=>{
+    td.addEventListener('blur', () => {
+      const r = parseInt(td.dataset.row, 10);
+      const key = td.dataset.key;
+      if(STATE.fund[r]){
+        STATE.fund[r][key] = td.textContent.trim();
+        saveState();
+      }
+    });
+  });
+  wrap.querySelectorAll('input[type="date"]').forEach(inp=>{
+    inp.addEventListener('change', () => {
+      const r = parseInt(inp.dataset.row, 10);
+      const key = inp.dataset.key;
+      if(STATE.fund[r]){
+        STATE.fund[r][key] = inp.value;
+        saveState();
+      }
+    });
+  });
+  wrap.querySelectorAll('.cb-del-row').forEach(btn=>{
+    btn.addEventListener('click', () => {
+      const r = parseInt(btn.dataset.row, 10);
+      STATE.fund.splice(r, 1);
+      saveState();
+      renderFund();
+    });
+  });
+}
+
+document.getElementById('fundEditToggleBtn').addEventListener('click', () => {
+  fundEditMode = !fundEditMode;
+  renderFund();
+});
+
+document.getElementById('fundAddRowBtn').addEventListener('click', () => {
+  if(!fundEditMode){ alert('Click "Edit" first to add a row.'); return; }
+  if(!STATE.fund) STATE.fund = [];
+  STATE.fund.push({id: uid('fund'), date:'', description:'', credit:'', debit:'', contribution:'', total:'', current:''});
+  saveState();
+  renderFund();
+});
+
+document.getElementById('fundDownloadCsvBtn').addEventListener('click', () => {
+  const rows = STATE.fund || [];
+  if(rows.length === 0){ alert('No rows in the ledger yet to download.'); return; }
+  let csv = ['S.No','Date','Description','Credit','Debit','Contribution','Total','Current'].map(csvEscape).join(',') + '\n';
+  rows.forEach((row, rIdx) => {
+    csv += [rIdx + 1, row.date, row.description, row.credit, row.debit, row.contribution, row.total, row.current].map(csvEscape).join(',') + '\n';
+  });
+  const blob = new Blob([csv], { type:'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'fund-account.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+});
+
+/* ============================================================
+   SECTION 16: DEPOSIT RECORD — tab-deposit
+   (Administrator and Campus Incharge panels only)
+   ============================================================ */
+let depEditMode = false;
+const DEP_WEEKDAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+
+function depUpdateEditToggleBtn(){
+  const btn = document.getElementById('depEditToggleBtn');
+  const addWrap = document.getElementById('depAddRowWrap');
+  if(!btn) return;
+  if(depEditMode){
+    btn.textContent = '🔓 Editing — click to lock';
+    btn.classList.add('cb-edit-active');
+  }else{
+    btn.textContent = '✏️ Edit';
+    btn.classList.remove('cb-edit-active');
+  }
+  if(addWrap) addWrap.style.display = depEditMode ? 'inline-flex' : 'none';
+}
+
+function renderDeposit(){
+  const wrap = document.getElementById('depTableWrap');
+  if(!wrap) return;
+  if(!STATE.deposit) STATE.deposit = [];
+  const rows = STATE.deposit;
+
+  if(rows.length === 0){
+    wrap.innerHTML = '<div class="empty-state"><div class="big">No deposit rows yet</div>Click "Edit" then "+ Add Row" to start the Deposit Record.</div>';
+    depUpdateEditToggleBtn();
+    return;
+  }
+
+  let html = '<table class="cb-table"><thead><tr><th style="width:50px;">S.No</th><th style="width:140px;">Date</th><th style="width:120px;">Day</th><th>Student Name</th><th style="width:120px;">Roll Number</th><th style="width:100px;">Fix Deposit</th><th style="width:110px;">Notes Fees</th><th style="width:100px;">Total</th><th style="width:40px;"></th></tr></thead><tbody>';
+
+  rows.forEach((row, rIdx) => {
+    html += '<tr>';
+    html += `<td>${rIdx + 1}</td>`;
+    html += `<td><input type="date" data-row="${rIdx}" data-key="date" value="${escapeHtml(row.date || '')}" ${depEditMode ? '' : 'disabled'} style="width:100%;border:none;background:transparent;color:inherit;font:inherit;padding:2px;"></td>`;
+    html += `<td><select data-row="${rIdx}" data-key="day" ${depEditMode ? '' : 'disabled'} style="width:100%;border:none;background:transparent;color:inherit;font:inherit;padding:2px;"><option value="">—</option>${DEP_WEEKDAYS.map(d => `<option value="${d}"${row.day === d ? ' selected' : ''}>${d}</option>`).join('')}</select></td>`;
+    html += `<td contenteditable="${depEditMode}" data-row="${rIdx}" data-key="name">${escapeHtml(row.name || '')}</td>`;
+    html += `<td contenteditable="${depEditMode}" data-row="${rIdx}" data-key="roll">${escapeHtml(row.roll || '')}</td>`;
+    html += `<td style="text-align:center;"><input type="checkbox" data-row="${rIdx}" data-key="fixDeposit" ${row.fixDeposit ? 'checked' : ''} ${depEditMode ? '' : 'disabled'}></td>`;
+    html += `<td contenteditable="${depEditMode}" data-row="${rIdx}" data-key="notesFees">${escapeHtml(row.notesFees || '')}</td>`;
+    html += `<td contenteditable="${depEditMode}" data-row="${rIdx}" data-key="total">${escapeHtml(row.total || '')}</td>`;
+    html += `<td>${depEditMode ? `<button type="button" class="cb-del-row" data-row="${rIdx}" title="Delete row">🗑️</button>` : ''}</td>`;
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  wrap.innerHTML = html;
+
+  depUpdateEditToggleBtn();
+
+  if(!depEditMode) return; // locked — nothing below is interactive until Edit is clicked
+
+  wrap.querySelectorAll('td[contenteditable="true"]').forEach(td=>{
+    td.addEventListener('blur', () => {
+      const r = parseInt(td.dataset.row, 10);
+      const key = td.dataset.key;
+      if(STATE.deposit[r]){
+        STATE.deposit[r][key] = td.textContent.trim();
+        saveState();
+      }
+    });
+  });
+  wrap.querySelectorAll('input[type="date"]').forEach(inp=>{
+    inp.addEventListener('change', () => {
+      const r = parseInt(inp.dataset.row, 10);
+      if(STATE.deposit[r]){
+        STATE.deposit[r].date = inp.value;
+        saveState();
+      }
+    });
+  });
+  wrap.querySelectorAll('select[data-key="day"]').forEach(sel=>{
+    sel.addEventListener('change', () => {
+      const r = parseInt(sel.dataset.row, 10);
+      if(STATE.deposit[r]){
+        STATE.deposit[r].day = sel.value;
+        saveState();
+      }
+    });
+  });
+  wrap.querySelectorAll('input[type="checkbox"]').forEach(chk=>{
+    chk.addEventListener('change', () => {
+      const r = parseInt(chk.dataset.row, 10);
+      if(STATE.deposit[r]){
+        STATE.deposit[r].fixDeposit = chk.checked;
+        saveState();
+      }
+    });
+  });
+  wrap.querySelectorAll('.cb-del-row').forEach(btn=>{
+    btn.addEventListener('click', () => {
+      const r = parseInt(btn.dataset.row, 10);
+      STATE.deposit.splice(r, 1);
+      saveState();
+      renderDeposit();
+    });
+  });
+}
+
+document.getElementById('depEditToggleBtn').addEventListener('click', () => {
+  depEditMode = !depEditMode;
+  renderDeposit();
+});
+
+document.getElementById('depAddRowBtn').addEventListener('click', () => {
+  if(!depEditMode){ alert('Click "Edit" first to add a row.'); return; }
+  if(!STATE.deposit) STATE.deposit = [];
+  STATE.deposit.push({id: uid('dep'), date:'', day:'', name:'', roll:'', fixDeposit:false, notesFees:'', total:''});
+  saveState();
+  renderDeposit();
+});
+
+document.getElementById('depDownloadCsvBtn').addEventListener('click', () => {
+  const rows = STATE.deposit || [];
+  if(rows.length === 0){ alert('No rows in the record yet to download.'); return; }
+  let csv = ['S.No','Date','Day','Student Name','Roll Number','Fix Deposit','Notes Fees','Total'].map(csvEscape).join(',') + '\n';
+  rows.forEach((row, rIdx) => {
+    csv += [rIdx + 1, row.date, row.day, row.name, row.roll, row.fixDeposit ? 'TRUE' : '', row.notesFees, row.total].map(csvEscape).join(',') + '\n';
+  });
+  const blob = new Blob([csv], { type:'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'deposit-record.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+});
+
+/* ============================================================
+   SECTION 17: MONTHLY PAPER TIMETABLE — tab-papertimetable
+   (Campus Incharge and Examination Incharge panels only)
+   ============================================================ */
+let pttEditMode = false;
+
+function pttUpdateEditToggleBtn(){
+  const btn = document.getElementById('pttEditToggleBtn');
+  const addWrap = document.getElementById('pttAddButtonsWrap');
+  if(!btn) return;
+  if(pttEditMode){
+    btn.textContent = '🔓 Editing — click to lock';
+    btn.classList.add('cb-edit-active');
+  }else{
+    btn.textContent = '✏️ Edit';
+    btn.classList.remove('cb-edit-active');
+  }
+  if(addWrap) addWrap.style.display = pttEditMode ? 'inline-flex' : 'none';
+  const monthSel = document.getElementById('pttMonthSelect');
+  if(monthSel) monthSel.disabled = !pttEditMode;
+}
+
+function renderPaperTimetable(){
+  const wrap = document.getElementById('pttTableWrap');
+  if(!wrap) return;
+  if(!STATE.paperTimetable) STATE.paperTimetable = defaultPaperTimetable();
+  const pt = STATE.paperTimetable;
+  if(!pt.subjects) pt.subjects = [];
+
+  // Month dropdown above the table
+  const monthSel = document.getElementById('pttMonthSelect');
+  if(monthSel){
+    monthSel.innerHTML = PTT_MONTHS.map(m => `<option value="${m}"${pt.month === m ? ' selected' : ''}>${m}</option>`).join('');
+    monthSel.disabled = !pttEditMode;
+  }
+
+  // Nothing built for this month yet — try pulling it straight from the
+  // Yearly Assessment Schedule before falling back to the empty state.
+  if(pt.subjects.length === 0){
+    syncPaperTimetableFromYearly();
+  }
+
+  if(pt.subjects.length === 0){
+    wrap.innerHTML = `<div class="empty-state"><div class="big">No subjects yet</div>Click "Edit" then "+ Add Subject Column", or add a "${escapeHtml(pt.month)}" row to the Yearly Assessment Schedule (Students tab) and click "🔄 Pull from Yearly Schedule".</div>`;
+    pttUpdateEditToggleBtn();
+    return;
+  }
+
+  const subjectOptions = ptSubjectOptions();
+  const logoSrc = STATE.paperLogo || DEFAULT_PAPER_LOGO;
+  const logoTag = logoSrc ? `<img src="${logoSrc}" alt="logo" style="height:44px;width:44px;object-fit:contain;filter:grayscale(1) brightness(0);">` : '';
+
+  let html = `<div style="display:flex; align-items:center; gap:12px; margin-bottom:14px;">${logoTag}<h3 style="margin:0;">PROGRESSIVE EDUCATION CENTRE</h3></div>`;
+  html += '<table class="cb-table"><thead><tr><th style="width:100px;">Subjects</th>';
+  pt.subjects.forEach((s, i) => {
+    html += `<th><select data-si="${i}" data-key="name" ${pttEditMode ? '' : 'disabled'} style="width:100%;border:none;background:transparent;color:inherit;font:inherit;font-weight:700;padding:2px;">${subjectOptions.map(o => `<option value="${escapeHtml(o)}"${s.name === o ? ' selected' : ''}>${escapeHtml(o)}</option>`).join('')}</select></th>`;
+  });
+  html += '<th style="width:40px;"></th></tr></thead><tbody>';
+
+  html += '<tr><td>Day</td>';
+  pt.subjects.forEach((s, i) => {
+    html += `<td><select data-si="${i}" data-key="day" ${pttEditMode ? '' : 'disabled'} style="width:100%;border:none;background:transparent;color:inherit;font:inherit;padding:2px;">${PTT_WEEKDAYS.map(d => `<option value="${d}"${s.day === d ? ' selected' : ''}>${d}</option>`).join('')}</select></td>`;
+  });
+  html += '<td></td></tr>';
+
+  html += '<tr><td>Date</td>';
+  pt.subjects.forEach((s, i) => {
+    html += `<td><select data-si="${i}" data-key="date" ${pttEditMode ? '' : 'disabled'} style="width:100%;border:none;background:transparent;color:inherit;font:inherit;padding:2px;">${PTT_DATES.map(d => `<option value="${d}"${s.date === d ? ' selected' : ''}>${d}</option>`).join('')}</select></td>`;
+  });
+  html += `<td></td></tr>`;
+
+  // Delete-column row, only shown while editing
+  if(pttEditMode){
+    html += '<tr><td></td>';
+    pt.subjects.forEach((s, i) => {
+      html += `<td style="text-align:center;"><button type="button" class="cb-del-row" data-si="${i}" title="Remove this subject column">🗑️</button></td>`;
+    });
+    html += '<td></td></tr>';
+  }
+
+  html += '</tbody></table>';
+  wrap.innerHTML = html;
+
+  pttUpdateEditToggleBtn();
+
+  if(!pttEditMode) return; // locked — nothing below is interactive until Edit is clicked
+
+  wrap.querySelectorAll('select[data-key]').forEach(sel => {
+    sel.addEventListener('change', () => {
+      const i = parseInt(sel.dataset.si, 10);
+      const key = sel.dataset.key;
+      if(pt.subjects[i]){
+        pt.subjects[i][key] = sel.value;
+        saveState();
+      }
+    });
+  });
+  wrap.querySelectorAll('.cb-del-row').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const i = parseInt(btn.dataset.si, 10);
+      pt.subjects.splice(i, 1);
+      saveState();
+      renderPaperTimetable();
+    });
+  });
+}
+
+const pttEditToggleBtn = document.getElementById('pttEditToggleBtn');
+if(pttEditToggleBtn) pttEditToggleBtn.addEventListener('click', () => {
+  pttEditMode = !pttEditMode;
+  renderPaperTimetable();
+});
+
+const pttMonthSelect = document.getElementById('pttMonthSelect');
+if(pttMonthSelect) pttMonthSelect.addEventListener('change', () => {
+  if(!STATE.paperTimetable) STATE.paperTimetable = defaultPaperTimetable();
+  STATE.paperTimetable.month = pttMonthSelect.value;
+  // Pull that month's Subject/Day/Date straight from the Yearly Assessment
+  // Schedule so the table doesn't need to be rebuilt by hand every month.
+  syncPaperTimetableFromYearly();
+  saveState();
+  renderPaperTimetable();
+});
+
+const pttSyncYearlyBtn = document.getElementById('pttSyncYearlyBtn');
+if(pttSyncYearlyBtn) pttSyncYearlyBtn.addEventListener('click', () => {
+  if(!pttEditMode){ alert('Click "Edit" first.'); return; }
+  if(!STATE.paperTimetable) STATE.paperTimetable = defaultPaperTimetable();
+  const ok = syncPaperTimetableFromYearly();
+  if(!ok){
+    alert(`No "${STATE.paperTimetable.month}" row found in the Yearly Assessment Schedule (Students tab). Add that month there first, then try again.`);
+    return;
+  }
+  saveState();
+  renderPaperTimetable();
+});
+
+const pttAddSubjectBtn = document.getElementById('pttAddSubjectBtn');
+if(pttAddSubjectBtn) pttAddSubjectBtn.addEventListener('click', () => {
+  if(!pttEditMode){ alert('Click "Edit" first to add a subject.'); return; }
+  if(!STATE.paperTimetable) STATE.paperTimetable = defaultPaperTimetable();
+  const opts = ptSubjectOptions();
+  STATE.paperTimetable.subjects.push({name: opts[0] || 'Physics', day: PTT_WEEKDAYS[0], date: PTT_DATES[0]});
+  saveState();
+  renderPaperTimetable();
+});
+
+const pttDownloadCsvBtn = document.getElementById('pttDownloadCsvBtn');
+if(pttDownloadCsvBtn) pttDownloadCsvBtn.addEventListener('click', () => {
+  const pt = STATE.paperTimetable;
+  if(!pt || pt.subjects.length === 0){ alert('No timetable to download yet.'); return; }
+  let csv = ['PROGRESSIVE EDUCATION CENTRE', '', `Month : ${pt.month}`].map(csvEscape).join(',') + '\n';
+  csv += ['Subjects', ...pt.subjects.map(s => s.name)].map(csvEscape).join(',') + '\n';
+  csv += ['Day', ...pt.subjects.map(s => s.day)].map(csvEscape).join(',') + '\n';
+  csv += ['Date', ...pt.subjects.map(s => s.date)].map(csvEscape).join(',') + '\n';
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'monthly-paper-timetable.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+});
+
+const pttDownloadPdfBtn = document.getElementById('pttDownloadPdfBtn');
+if(pttDownloadPdfBtn) pttDownloadPdfBtn.addEventListener('click', () => {
+  const pt = STATE.paperTimetable;
+  if(!pt || pt.subjects.length === 0){ alert('No timetable to print yet.'); return; }
+  const logoSrc = STATE.paperLogo || DEFAULT_PAPER_LOGO;
+  const logoTag = logoSrc ? `<img src="${logoSrc}" alt="logo" style="height:56px;width:56px;object-fit:contain;filter:grayscale(1) brightness(0);">` : '';
+
+  let html = `<div style="display:flex; align-items:center; justify-content:space-between; gap:14px; margin-bottom:10px;">
+    <div style="display:flex; align-items:center; gap:14px;">${logoTag}<h2 style="margin:0;">PROGRESSIVE EDUCATION CENTRE</h2></div>
+    <div style="font-weight:700;">Month : ${escapeHtml(pt.month)}</div>
+  </div>`;
+
+  html += '<table><thead><tr><th>Subjects</th>';
+  pt.subjects.forEach(s => { html += `<th>${escapeHtml(s.name)}</th>`; });
+  html += '</tr></thead><tbody>';
+  html += '<tr><td>Day</td>';
+  pt.subjects.forEach(s => { html += `<td>${escapeHtml(s.day)}</td>`; });
+  html += '</tr><tr><td>Date</td>';
+  pt.subjects.forEach(s => { html += `<td>${escapeHtml(s.date)}</td>`; });
+  html += '</tr></tbody></table>';
+
+  document.getElementById('printArea').innerHTML = html;
+  window.print();
+});
+
+/* ============================================================
    INIT
    ============================================================ */
 async function init(){
@@ -8377,6 +9108,8 @@ async function init(){
   seedDefaultSubjectTeachers(); // guarantees the 7 core subjects + teacher names exist
   correctDefaultTeacherNamesOnce(); // one-time fix: auto-filled defaults had Junior/Senior backwards
   seedDefaultStudentsData(); // one-time: load in the admission-form data if the table has never been filled
+  seedDefaultFund(); // one-time: pre-fill the Fund Account ledger with 50 blank rows if it's never been filled
+  seedDefaultDeposit(); // one-time: pre-fill the Deposit Record if it's never been filled
   migrateMarksToHistory();
   renderStudentList();
   renderSubjectList();
@@ -8402,6 +9135,9 @@ async function init(){
   renderStudentsData();
   renderAwardList();
   renderInvigilationList();
+  renderFund();
+  renderDeposit();
+  renderPaperTimetable();
   momInit();
   updateLiveClock();
   setInterval(updateLiveClock, 1000);
