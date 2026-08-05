@@ -3845,7 +3845,30 @@ document.querySelectorAll('.tab-btn').forEach(btn=>{
   if(!savedTab) return;
   const btn = document.querySelector('.tab-btn[data-tab="' + savedTab + '"]');
   if(!btn || btn.style.display === 'none') return;
-  activateTab(savedTab, {persist:false});
+  // NOTE: this runs before loadState() has finished (init() hasn't even
+  // started yet) and before later sections of this script have declared
+  // their own const/let bindings, so calling the full activateTab() here
+  // — which also fires tab-specific data refreshers like
+  // renderAttendanceMarking()/renderMarksTable()/etc. — can throw
+  // (referencing a not-yet-initialized variable from a later section) and,
+  // being an uncaught top-level error, would silently abort the rest of
+  // this script, including the init() call at the bottom. That's what
+  // caused a refreshed tab (other than Students, which init() always
+  // renders first) to come back with all its data missing until the
+  // Students tab was opened and refreshed. Guard it, and only do the
+  // section-visibility swap now; the real per-tab data refresh happens
+  // again in init() below, once STATE has actually loaded.
+  try{
+    activateTab(savedTab, {persist:false});
+  }catch(e){
+    console.error('Early tab restore failed (will retry after data loads):', e);
+    try{
+      document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+      document.querySelectorAll('.section').forEach(s=>{ s.classList.remove('active'); s.classList.remove('full-width-section'); });
+      btn.classList.add('active');
+      document.getElementById(savedTab).classList.add('active');
+    }catch(e2){}
+  }
 })();
 
 /* ============================================================
@@ -9188,6 +9211,25 @@ async function init(){
   momInit();
   updateLiveClock();
   setInterval(updateLiveClock, 1000);
+
+  // Re-apply the last-viewed tab now that STATE has actually finished
+  // loading from the DB/localStorage. This is what actually fixes/
+  // refreshes that tab's dropdowns, tables and charts on a hard refresh —
+  // the earlier restore (right after activateTab was defined) only ran to
+  // avoid a flash of the Students section and may have had nothing to show
+  // yet, or may have failed outright because it ran before this data was
+  // ready.
+  try{
+    const savedTab = localStorage.getItem('spt_active_tab');
+    if(savedTab){
+      const btn = document.querySelector('.tab-btn[data-tab="' + savedTab + '"]');
+      if(btn && btn.style.display !== 'none'){
+        activateTab(savedTab, {persist:false});
+      }
+    }
+  }catch(e){
+    console.error('Tab restore after data load failed:', e);
+  }
 }
 init();
 </script>
