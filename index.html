@@ -648,10 +648,32 @@ html.pec-authed #loginGate{ display:none; }
     var saved = localStorage.getItem('pec-theme');
     if(saved==='dark'){ document.documentElement.setAttribute('data-theme','dark'); }
   }catch(e){}
+
+  // ---------- Main login "stays open while the site is open anywhere" ----------
+  // pec-auth is shared via localStorage (so a new tab of the same site sees it
+  // immediately, no re-login needed) but it's only trusted alongside a recent
+  // pec-heartbeat timestamp. Every open tab of this site refreshes that
+  // timestamp once a second; if nothing has refreshed it in a while, that means
+  // every tab was closed and this is a fresh visit, so the login is discarded
+  // and the login page is shown again. The panel password (further down) is
+  // never remembered at all — it's asked every time, every panel, regardless
+  // of any of this.
+  var HEARTBEAT_INTERVAL_MS = 1000;
+  var STALE_AFTER_MS = 4000;
   try{
-    if(localStorage.getItem('pec-auth') === 'granted'){
+    var lastBeat = parseInt(localStorage.getItem('pec-heartbeat'), 10) || 0;
+    var isFresh = (Date.now() - lastBeat) < STALE_AFTER_MS;
+    if(isFresh && localStorage.getItem('pec-auth') === 'granted'){
       document.documentElement.classList.add('pec-authed');
+    } else {
+      localStorage.removeItem('pec-auth');
     }
+  }catch(e){}
+  try{
+    localStorage.setItem('pec-heartbeat', String(Date.now()));
+    setInterval(function(){
+      try{ localStorage.setItem('pec-heartbeat', String(Date.now())); }catch(e){}
+    }, HEARTBEAT_INTERVAL_MS);
   }catch(e){}
 })();
 </script>
@@ -703,8 +725,8 @@ html.pec-authed #loginGate{ display:none; }
       <div class="panel-icon">A</div>
       <div class="panel-role-tag">Role 01</div>
       <h2>Administrator</h2>
-      <p class="desc">Manage day-to-day student attendance records — marking, summaries, and monthly logs. Also view and download the weekly class timetable.</p>
-      <div class="panel-scope">Access scope: <b>Attendance &amp; Timetable (view-only)</b></div>
+      <p class="desc">Manage day-to-day student attendance records — marking, summaries, and monthly logs. Also view and download the weekly class timetable and manage the campus Fund Account.</p>
+      <div class="panel-scope">Access scope: <b>Attendance, Timetable (view-only) &amp; Fund Account</b></div>
       <span class="panel-enter">Enter Panel <span class="arrow">→</span></span>
     </a>
 
@@ -718,7 +740,7 @@ html.pec-authed #loginGate{ display:none; }
       <span class="panel-enter">Enter Panel <span class="arrow">→</span></span>
     </a>
 
-    <a class="panel-card panel-examination" href="student-progress-tracker.html?role=examination">
+    <a class="panel-card panel-examination" href="?panel=examination" onclick="return requestPanelAccess(event, 'examination');">
       <div class="top-accent"></div>
       <div class="panel-icon">EI</div>
       <div class="panel-role-tag">Role 03</div>
@@ -817,7 +839,7 @@ setInterval(updateLiveClock, 1000);
       var u = document.getElementById('loginUsername').value.trim();
       var p = document.getElementById('loginPassword').value;
       if(u === VALID_USERNAME && p === VALID_PASSWORD){
-        try{ localStorage.setItem('pec-auth','granted'); }catch(err){}
+        try{ localStorage.setItem('pec-auth','granted'); localStorage.setItem('pec-heartbeat', String(Date.now())); }catch(err){}
         if(errorEl) errorEl.hidden = true;
         form.reset();
         var redirectTarget = null;
@@ -836,12 +858,18 @@ setInterval(updateLiveClock, 1000);
   }
 })();
 
-/* ---------- Panel access password (Administrator / Academia / Campus Incharge) ---------- */
+/* ---------- Panel access password (Administrator / Academia / Examination Incharge / Campus Incharge) ---------- */
 (function(){
-  var PANEL_PASSWORD = 'PEC123###';
+  var PANEL_PASSWORD = 'PEC12345##';
+  // View-only password: works only for the Campus Incharge panel. Opens the
+  // exact same panel but in read-only mode (handled inside
+  // student-progress-tracker.html via the viewonly=1 query flag) — no
+  // editing, adding, deleting, importing or saving is possible.
+  var INCHARGE_VIEW_PASSWORD = 'PEC123##';
   var PANEL_TARGETS = {
     admin: 'student-progress-tracker.html?role=admin',
     academia: 'student-progress-tracker.html?role=academia',
+    examination: 'student-progress-tracker.html?role=examination',
     incharge: 'student-progress-tracker.html?role=incharge'
   };
   var overlay = document.getElementById('panelPassOverlay');
@@ -849,9 +877,11 @@ setInterval(updateLiveClock, 1000);
   var input = document.getElementById('panelPassInput');
   var errorEl = document.getElementById('panelPassError');
   var pendingUrl = null;
+  var pendingKey = null;
 
-  function showModal(target){
+  function showModal(target, key){
     pendingUrl = target;
+    pendingKey = key || null;
     if(errorEl) errorEl.hidden = true;
     if(input) input.value = '';
     if(overlay){
@@ -865,19 +895,14 @@ setInterval(updateLiveClock, 1000);
     if(e && e.preventDefault) e.preventDefault();
     var target = PANEL_TARGETS[key];
     if(!target) return false;
-    try{
-      if(localStorage.getItem('pec-panel-auth') === 'granted'){
-        location.href = target;
-        return false;
-      }
-    }catch(err){}
-    showModal(target);
+    showModal(target, key);
     return false;
   };
 
   window.closePanelPassModal = function(){
     if(overlay) overlay.classList.remove('visible');
     pendingUrl = null;
+    pendingKey = null;
     try{ history.replaceState(null, '', location.pathname); }catch(err){}
   };
 
@@ -891,12 +916,17 @@ setInterval(updateLiveClock, 1000);
     form.addEventListener('submit', function(e){
       e.preventDefault();
       var p = input ? input.value : '';
-      if(p === PANEL_PASSWORD){
-        try{ localStorage.setItem('pec-panel-auth','granted'); }catch(err){}
+      var isFullAccess = (p === PANEL_PASSWORD);
+      var isInchargeView = (pendingKey === 'incharge' && p === INCHARGE_VIEW_PASSWORD);
+      if(isFullAccess || isInchargeView){
         if(errorEl) errorEl.hidden = true;
         if(pendingUrl){
           var target = pendingUrl;
+          if(isInchargeView){
+            target += (target.indexOf('?') > -1 ? '&' : '?') + 'viewonly=1';
+          }
           pendingUrl = null;
+          pendingKey = null;
           location.href = target;
         } else {
           window.closePanelPassModal();
@@ -907,7 +937,7 @@ setInterval(updateLiveClock, 1000);
     });
   }
 
-  // Handles a ?panel=admin/academia/incharge URL — used when a panel link is
+  // Handles a ?panel=admin/academia/examination/incharge URL — used when a panel link is
   // opened in a new tab, opened directly, or reached via the main login
   // redirect below. Runs on load and again right after main login succeeds.
   window.handlePanelParam = function(){
@@ -917,13 +947,7 @@ setInterval(updateLiveClock, 1000);
     var target = PANEL_TARGETS[key];
     var authed = document.documentElement.classList.contains('pec-authed');
     if(!authed) return; // main login gate will handle this once signed in
-    try{
-      if(localStorage.getItem('pec-panel-auth') === 'granted'){
-        location.replace(target);
-        return;
-      }
-    }catch(err){}
-    showModal(target);
+    showModal(target, key);
   };
 
   handlePanelParam();
