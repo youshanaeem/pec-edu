@@ -1368,14 +1368,15 @@ select#reportStudentSelect, select#rankSortSelect{ margin-bottom:0; }
     <button class="tab-btn" data-tab="tab-coursebreakup"><span class="num">07</span>Course Breakup</button>
     <button class="tab-btn" data-tab="tab-attendance"><span class="num">08</span>Attendance</button>
     <button class="tab-btn" data-tab="tab-timetable"><span class="num">09</span>Timetable</button>
-    <button class="tab-btn" data-tab="tab-papers"><span class="num">10</span>Papers</button>
-    <button class="tab-btn" data-tab="tab-students-data"><span class="num">11</span>Students Data</button>
-    <button class="tab-btn" data-tab="tab-mom"><span class="num">12</span>MOM's</button>
-    <button class="tab-btn" data-tab="tab-awardlist"><span class="num">13</span>Award List</button>
-    <button class="tab-btn" data-tab="tab-invigilation"><span class="num">14</span>Invigilation List</button>
-    <button class="tab-btn" data-tab="tab-fund"><span class="num">15</span>Fund Account</button>
-    <button class="tab-btn" data-tab="tab-deposit"><span class="num">16</span>Deposit Record</button>
-    <button class="tab-btn" data-tab="tab-papertimetable"><span class="num">17</span>Monthly Paper Timetable</button>
+    <button class="tab-btn" data-tab="tab-students-data"><span class="num">10</span>Students Data</button>
+    <button class="tab-btn" data-tab="tab-mom"><span class="num">11</span>MOM's</button>
+    <button class="tab-btn" data-tab="tab-fund"><span class="num">12</span>Fund Account</button>
+    <button class="tab-btn" data-tab="tab-deposit"><span class="num">13</span>Deposit Record</button>
+    <button class="tab-btn" data-tab="tab-classrating"><span class="num">14</span>Daily Class Rating</button>
+    <button class="tab-btn" data-tab="tab-papertimetable"><span class="num">15</span>Monthly Paper Timetable</button>
+    <button class="tab-btn" data-tab="tab-papers"><span class="num">16</span>Papers</button>
+    <button class="tab-btn" data-tab="tab-awardlist"><span class="num">17</span>Award List</button>
+    <button class="tab-btn" data-tab="tab-invigilation"><span class="num">18</span>Invigilation List</button>
   </nav>
 </aside>
 
@@ -2971,6 +2972,59 @@ select#reportStudentSelect, select#rankSortSelect{ margin-bottom:0; }
   </div>
 </div>
 
+<!-- ============================================================
+     SECTION 18: DAILY CLASS RATING — teacher rates behavior,
+     punctuality & class performance for each student after
+     taking the day's class
+     ============================================================ -->
+<div id="tab-classrating" class="section">
+  <div class="section-title">Daily Class Rating</div>
+  <p class="section-sub">Pick a date, then add every class taken that day — the teacher selects their own name, class and subject, then rates each student in that class individually. The average across all of today's classes is calculated automatically.</p>
+
+  <div class="card">
+    <h3><span class="dot"></span>Rate Today's Class</h3>
+    <div style="max-width:220px;">
+      <label for="classRatingDate">Date</label>
+      <input type="date" id="classRatingDate">
+    </div>
+    <div id="classRatingMarkWrap"></div>
+    <div class="hint" style="margin-top:6px;">
+      <span class="monthly-att-legend-dot" style="background:var(--chalk-green);"></span> Excellent
+      &nbsp;&nbsp;<span class="monthly-att-legend-dot" style="background:var(--amber);"></span> Good
+      &nbsp;&nbsp;<span class="monthly-att-legend-dot" style="background:var(--late);"></span> Average
+      &nbsp;&nbsp;<span class="monthly-att-legend-dot" style="background:var(--coral);"></span> Poor
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:20px;">
+    <h3><span class="dot"></span>Monthly Average Rating</h3>
+    <p class="section-sub" style="margin-bottom:16px;">Pick a month to see every day marked in it combined into one average.</p>
+    <div style="max-width:220px;">
+      <label for="classRatingMonthSelect">Month</label>
+      <input type="month" id="classRatingMonthSelect">
+    </div>
+    <div id="classRatingMonthWrap"></div>
+  </div>
+
+  <div class="card" style="margin-top:20px;">
+    <h3><span class="dot"></span>Rating Summary</h3>
+    <p class="section-sub" style="margin-bottom:16px;">Average rating (Poor=25% to Excellent=100%) for each student, across every class and date rated so far — broken down by Class Performance, Punctuality and Behaviour.</p>
+    <div style="overflow-x:auto;">
+      <table>
+        <thead><tr>
+          <th>Student</th>
+          <th>Classes Rated</th>
+          <th>Performance Avg</th>
+          <th>Punctuality Avg</th>
+          <th>Behaviour Avg</th>
+          <th>Overall Avg</th>
+        </tr></thead>
+        <tbody id="classRatingSummaryBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
 <!-- MOM TOAST -->
 <div id="momToast" class="mom-toast"></div>
 
@@ -3204,7 +3258,10 @@ let STATE = {
   fund: [], // {id, date, description, credit, debit, contribution, total, current} — one row per ledger entry (Administrator / Campus Incharge)
   fundSeeded: false, // one-time flag: has the ledger already been pre-filled with 50 blank rows to match the original spreadsheet?
   deposit: [], // {id, date, day, name, roll, fixDeposit, notesFees, total} — one row per deposit/notes-fee entry (Administrator / Campus Incharge)
-  depositSeeded: false // one-time flag: has the deposit record already been pre-filled to match the original spreadsheet?
+  depositSeeded: false, // one-time flag: has the deposit record already been pre-filled to match the original spreadsheet?
+  classRatings: [], // {id, date, teacher, cls, subject, notes, ratings: {studentId: {performance, punctuality, behaviour: 'excellent'|'good'|'average'|'poor'|null}}} — one row per class session (Daily Class Rating tab); each session covers one teacher/class/subject on a date, with each student in that class rated individually on 3 dimensions
+  classRatingsMigratedV3: false, // one-time flag: have older class-rating formats (pre student-level ratings) been cleared out?
+  classRatingsMigratedV4: false // one-time flag: have single-value per-student ratings been upgraded to the 3-dimension (Performance/Punctuality/Behaviour) shape?
 };
 
 // Guaranteed fallback logo for every PDF/print across every panel (Admin,
@@ -3264,6 +3321,9 @@ function applyParsedState(parsed){
   STATE.fundSeeded = parsed.fundSeeded || false;
   STATE.deposit = parsed.deposit || [];
   STATE.depositSeeded = parsed.depositSeeded || false;
+  STATE.classRatings = parsed.classRatings || [];
+  STATE.classRatingsMigratedV3 = parsed.classRatingsMigratedV3 || false;
+  STATE.classRatingsMigratedV4 = parsed.classRatingsMigratedV4 || false;
 }
 
 function loadStateFromLocalStorage(){
@@ -3570,6 +3630,7 @@ document.getElementById('resetAllDataBtn').addEventListener('click', function(){
   STATE.progressMeta = {cls:'', year:''};
   STATE.courseBreakup = defaultCourseBreakup();
   STATE.courseBreakupMeta = {cls:'', year:''};
+  STATE.classRatings = [];
 
   try{ localStorage.removeItem(STORAGE_KEY); }catch(e){ console.error('Clear error:', e); }
   saveState();
@@ -3587,10 +3648,10 @@ let adminUnlocked = true;
    Reached via index.html, which links here with a ?role= query parameter.
    Each role sees only the sections relevant to it; Campus Incharge sees everything. */
 const ROLE_TABS = {
-  admin:       ['tab-attendance','tab-timetable','tab-students-data','tab-mom','tab-awardlist','tab-fund','tab-deposit'],
+  admin:       ['tab-attendance','tab-classrating','tab-timetable','tab-students-data','tab-mom','tab-awardlist','tab-fund','tab-deposit'],
   academia:    ['tab-courseprogress','tab-timetable','tab-coursebreakup','tab-mom','tab-awardlist'],
-  incharge:    ['tab-students','tab-subjects','tab-report','tab-ranking','tab-overview','tab-courseprogress','tab-attendance','tab-timetable','tab-papertimetable','tab-coursebreakup','tab-papers','tab-students-data','tab-mom','tab-awardlist','tab-invigilation','tab-fund','tab-deposit'],
-  teachers:    ['tab-timetable','tab-papers','tab-mom','tab-awardlist'],
+  incharge:    ['tab-students','tab-subjects','tab-report','tab-ranking','tab-overview','tab-courseprogress','tab-attendance','tab-classrating','tab-timetable','tab-papertimetable','tab-coursebreakup','tab-papers','tab-students-data','tab-mom','tab-awardlist','tab-invigilation','tab-fund','tab-deposit'],
+  teachers:    ['tab-timetable','tab-classrating','tab-papers','tab-mom','tab-awardlist'],
   examination: ['tab-subjects','tab-timetable','tab-papertimetable','tab-mom','tab-awardlist','tab-invigilation']
 };
 const roleParam = new URLSearchParams(window.location.search).get('role');
@@ -3812,6 +3873,7 @@ function activateTab(tabId, opts){
   if(tabId === 'tab-subjects'){ refreshMarksDropdowns(); renderMarksTable(); }
   if(tabId === 'tab-courseprogress'){ renderCourseProgress(); }
   if(tabId === 'tab-attendance'){ renderAttendanceMarking(); renderAttendanceSummary(); renderMonthlyAttendance(); }
+  if(tabId === 'tab-classrating'){ renderClassRatingMarking(); renderClassRatingMonthly(); renderClassRatingSummary(); }
   if(tabId === 'tab-report'){ refreshReportDropdown(); renderReport(); }
   if(tabId === 'tab-ranking'){ renderRanking(); }
   if(tabId === 'tab-overview'){ refreshOverviewDropdowns(); renderOverview(); }
@@ -5216,6 +5278,14 @@ const attendanceDateInput = document.getElementById('attendanceDate');
 attendanceDateInput.value = new Date().toISOString().slice(0,10);
 attendanceDateInput.addEventListener('change', renderAttendanceMarking);
 
+const classRatingDateInput = document.getElementById('classRatingDate');
+classRatingDateInput.value = new Date().toISOString().slice(0,10);
+classRatingDateInput.addEventListener('change', renderClassRatingMarking);
+
+const classRatingMonthSelect = document.getElementById('classRatingMonthSelect');
+classRatingMonthSelect.value = new Date().toISOString().slice(0,7);
+classRatingMonthSelect.addEventListener('change', renderClassRatingMonthly);
+
 function markAttendance(studentId, status){
   const date = attendanceDateInput.value;
   if(!date){
@@ -5291,6 +5361,342 @@ function renderAttendanceSummary(){
     </tr>`;
   });
   body.innerHTML = html || '<tr><td colspan="6" class="empty-state">No attendance records yet</td></tr>';
+}
+
+/* ============================================================
+   SECTION 3b: DAILY CLASS RATING — one row per class session.
+   Multiple classes happen every day, so each row records which
+   teacher took which class/subject that day and how it's rated.
+   ============================================================ */
+const CLASS_RATING_LEVELS = [
+  { value:'excellent', label:'Excellent', cls:'btn-primary', score:4 },
+  { value:'good',      label:'Good',      cls:'btn-amber',   score:3 },
+  { value:'average',   label:'Average',   cls:'btn-late',    score:2 },
+  { value:'poor',      label:'Poor',      cls:'btn-danger',  score:1 }
+];
+// Reuses the same Class list as the Student Progress Report tab, and the
+// same Subject list as Course Breakup, so every part of the app stays consistent.
+const CLASS_RATING_CLASSES = ['IX','X','XI','XII'];
+const CLASS_RATING_SUBJECTS = COURSE_BREAKUP_SUBJECTS.map(s=>s.label);
+
+// Each student in a class session is rated on these 3 separate dimensions
+// (not just one overall rating) — restored from the original spreadsheet's
+// per-student Behaviour/Punctuality/Class Performance columns.
+const CLASS_RATING_DIMENSIONS = [
+  { key:'performance',  label:'Class Performance' },
+  { key:'punctuality',  label:'Punctuality' },
+  { key:'behaviour',    label:'Behaviour' }
+];
+
+function classRatingScore(value){
+  const lvl = CLASS_RATING_LEVELS.find(l=>l.value===value);
+  return lvl ? lvl.score : null;
+}
+
+// Displays an average score (1–4 scale) as a percentage instead — e.g. a
+// score of 3.4 becomes "85%". Scores are still stored/averaged as 1–4
+// internally (so nothing about the rating buttons changes); only the
+// display is converted.
+function classRatingPercent(avgScore){
+  if(avgScore===null || avgScore===undefined) return '—';
+  return Math.round((avgScore/4)*100)+'%';
+}
+
+// One-time cleanup: earlier versions of this tab stored either per-student
+// Behavior/Punctuality/Performance rows (no 'teacher' key) or per-class
+// rows with one scalar rating and no per-student breakdown (no 'ratings'
+// key). Both are dropped once in favor of the current
+// teacher+class+subject session, each with its own per-student ratings.
+function migrateClassRatingsToSessionModel(){
+  if(STATE.classRatingsMigratedV3) return;
+  STATE.classRatings = (STATE.classRatings || []).filter(r =>
+    Object.prototype.hasOwnProperty.call(r, 'teacher') && Object.prototype.hasOwnProperty.call(r, 'ratings')
+  );
+  STATE.classRatingsMigratedV3 = true;
+  saveState();
+}
+
+// One-time upgrade: each student's rating used to be a single value
+// ('excellent'|'good'|'average'|'poor'|null). It's now an object with 3
+// separate dimensions — Class Performance, Punctuality, Behaviour. Any
+// existing single-value rating is kept as the Class Performance score so
+// no data is lost, with Punctuality/Behaviour left blank to fill in.
+function migrateClassRatingsToDimensions(){
+  if(STATE.classRatingsMigratedV4) return;
+  (STATE.classRatings || []).forEach(r=>{
+    if(!r.ratings) return;
+    Object.keys(r.ratings).forEach(studentId=>{
+      const v = r.ratings[studentId];
+      if(typeof v === 'string' || v === null || v === undefined){
+        r.ratings[studentId] = { performance: v || null, punctuality: null, behaviour: null };
+      }
+    });
+  });
+  STATE.classRatingsMigratedV4 = true;
+  saveState();
+}
+
+// All teacher names already on file (Subjects & Marks tab), used to power
+// the autocomplete list so a teacher can just start typing their name.
+function classRatingKnownTeachers(){
+  const names = new Set();
+  STATE.subjects.forEach(s=>{
+    if(s.teacherJunior) names.add(s.teacherJunior);
+    if(s.teacherSenior) names.add(s.teacherSenior);
+  });
+  return Array.from(names).sort();
+}
+
+function addClassRatingEntry(){
+  const date = classRatingDateInput.value;
+  if(!date){
+    alert('Please select a date first.');
+    return;
+  }
+  STATE.classRatings.push({ id: uid('cr'), date, teacher:'', cls:'', subject:'', notes:'', ratings:{} });
+  saveState();
+  renderClassRatingMarking();
+  renderClassRatingMonthly();
+  renderClassRatingSummary();
+}
+
+function removeClassRatingEntry(id){
+  STATE.classRatings = STATE.classRatings.filter(r=>r.id!==id);
+  saveState();
+  renderClassRatingMarking();
+  renderClassRatingMonthly();
+  renderClassRatingSummary();
+}
+
+function updateClassRatingField(id, field, value){
+  const record = STATE.classRatings.find(r=>r.id===id);
+  if(!record) return;
+  record[field] = value;
+  saveState();
+  // Changing Class re-filters which students show under this session.
+  if(field === 'cls') renderClassRatingMarking();
+  renderClassRatingSummary();
+}
+
+// Rates one student, on one dimension (Class Performance / Punctuality /
+// Behaviour), within one class session. Clicking the already-selected
+// level again clears that dimension's rating for this session.
+function setClassRatingStudentRating(sessionId, studentId, dimension, value){
+  const record = STATE.classRatings.find(r=>r.id===sessionId);
+  if(!record) return;
+  if(!record.ratings) record.ratings = {};
+  if(!record.ratings[studentId] || typeof record.ratings[studentId] !== 'object'){
+    record.ratings[studentId] = { performance:null, punctuality:null, behaviour:null };
+  }
+  const studentRatings = record.ratings[studentId];
+  studentRatings[dimension] = (studentRatings[dimension] === value) ? null : value;
+  saveState();
+  renderClassRatingMarking();
+  renderClassRatingMonthly();
+  renderClassRatingSummary();
+}
+
+// Students to show under a session: if a Class has been picked, only
+// students in that class; otherwise every student (so a class can still be
+// rated before assigning students to that class elsewhere).
+function classRatingStudentsForSession(session){
+  if(!session.cls) return STATE.students;
+  const target = session.cls.trim().toLowerCase();
+  const matched = STATE.students.filter(s => String(s.cls||'').trim().toLowerCase() === target);
+  return matched.length ? matched : STATE.students;
+}
+
+function renderClassRatingMarking(){
+  const wrap = document.getElementById('classRatingMarkWrap');
+  const date = classRatingDateInput.value;
+  const records = date ? STATE.classRatings.filter(r=>r.date===date) : [];
+  const teacherNames = classRatingKnownTeachers();
+
+  let html = `<datalist id="crTeacherList">${teacherNames.map(t=>`<option value="${escapeHtml(t)}">`).join('')}</datalist>`;
+
+  // Today's average pools every individual student rating — across all 3
+  // dimensions (Performance/Punctuality/Behaviour) — for every class
+  // session recorded for the date.
+  const allScoresToday = [];
+  records.forEach(r=>{
+    Object.values(r.ratings||{}).forEach(sr=>{
+      CLASS_RATING_DIMENSIONS.forEach(d=>{
+        const sc = classRatingScore(sr ? sr[d.key] : null);
+        if(sc!==null) allScoresToday.push(sc);
+      });
+    });
+  });
+  const avg = allScoresToday.length ? (allScoresToday.reduce((a,b)=>a+b,0)/allScoresToday.length) : null;
+  html += `<div style="display:flex; flex-wrap:wrap; gap:28px; align-items:center; margin:14px 0 16px; padding:12px 16px; border:1px solid var(--line); border-radius:8px; background:var(--input-bg);">
+    <div>
+      <div style="font-size:11px; text-transform:uppercase; letter-spacing:.4px; color:var(--muted);">Classes Today</div>
+      <div style="font-family:'Lora',serif; font-size:20px; font-weight:600;">${records.length}</div>
+    </div>
+    <div>
+      <div style="font-size:11px; text-transform:uppercase; letter-spacing:.4px; color:var(--muted);">Today's Average Rating</div>
+      <div style="font-family:'Lora',serif; font-size:20px; font-weight:600; color:var(--chalk-green);">${classRatingPercent(avg)}</div>
+    </div>
+  </div>`;
+
+  if(!date){
+    html += '<div class="empty-state"><div class="big">Pick a date</div>Select a date above to start rating today\'s classes.</div>';
+  } else if(records.length === 0){
+    html += '<div class="empty-state"><div class="big">No classes rated yet</div>Add the first class you took today.</div>';
+  } else if(STATE.students.length === 0){
+    html += '<div class="empty-state"><div class="big">No students yet</div>Add a student in the Students tab first.</div>';
+  } else {
+    records.forEach(r=>{
+      const sessionStudents = classRatingStudentsForSession(r);
+      const sessionScores = [];
+      sessionStudents.forEach(s=>{
+        const sr = (r.ratings||{})[s.id];
+        CLASS_RATING_DIMENSIONS.forEach(d=>{
+          const sc = classRatingScore(sr ? sr[d.key] : null);
+          if(sc!==null) sessionScores.push(sc);
+        });
+      });
+      const sessionAvg = sessionScores.length ? (sessionScores.reduce((a,b)=>a+b,0)/sessionScores.length) : null;
+
+      html += `<div style="border:1px solid var(--line); border-radius:8px; padding:14px; margin-bottom:14px; background:var(--input-bg);">
+        <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:flex-end; margin-bottom:12px;">
+          <div style="flex:1 1 150px; min-width:130px;">
+            <label>Teacher</label>
+            <input type="text" list="crTeacherList" value="${escapeHtml(r.teacher||'')}" placeholder="Teacher name" onchange="updateClassRatingField('${r.id}','teacher',this.value)" style="margin-bottom:0;">
+          </div>
+          <div style="flex:1 1 90px; min-width:90px;">
+            <label>Class</label>
+            <select onchange="updateClassRatingField('${r.id}','cls',this.value)" style="margin-bottom:0;">
+              <option value="">Select</option>
+              ${CLASS_RATING_CLASSES.map(c=>`<option value="${c}" ${r.cls===c?'selected':''}>${c}</option>`).join('')}
+            </select>
+          </div>
+          <div style="flex:1 1 160px; min-width:140px;">
+            <label>Subject</label>
+            <select onchange="updateClassRatingField('${r.id}','subject',this.value)" style="margin-bottom:0;">
+              <option value="">Select</option>
+              ${CLASS_RATING_SUBJECTS.map(s=>`<option value="${escapeHtml(s)}" ${r.subject===s?'selected':''}>${escapeHtml(s)}</option>`).join('')}
+            </select>
+          </div>
+          <div style="flex:1 1 150px; min-width:130px;">
+            <label>Notes</label>
+            <input type="text" value="${escapeHtml(r.notes||'')}" placeholder="Optional remark" onchange="updateClassRatingField('${r.id}','notes',this.value)" style="margin-bottom:0;">
+          </div>
+          <div>
+            <button type="button" class="btn btn-outline btn-sm" onclick="removeClassRatingEntry('${r.id}')" title="Remove this class" style="color:var(--coral);">✕ Remove</button>
+          </div>
+        </div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead><tr><th>Student</th>${CLASS_RATING_DIMENSIONS.map(d=>`<th>${escapeHtml(d.label)}</th>`).join('')}</tr></thead>
+            <tbody>
+              ${sessionStudents.map(s=>{
+                const sr = (r.ratings||{})[s.id] || {};
+                const photoHtml = s.photo
+                  ? `<img class="chip-photo" src="${s.photo}" alt="${escapeHtml(s.name)}">`
+                  : `<div class="chip-photo placeholder">${escapeHtml(initials(s.name))}</div>`;
+                const dimCells = CLASS_RATING_DIMENSIONS.map(d=>{
+                  const current = sr[d.key] || null;
+                  return `<td style="white-space:nowrap;">${CLASS_RATING_LEVELS.map(lvl=>`<button type="button" class="btn btn-sm ${current===lvl.value ? lvl.cls : 'btn-outline'}" onclick="setClassRatingStudentRating('${r.id}','${s.id}','${d.key}','${lvl.value}')">${lvl.label}</button> `).join('')}</td>`;
+                }).join('');
+                return `<tr>
+                  <td><div class="student-chip">${photoHtml}<span>${escapeHtml(s.name)}</span></div></td>
+                  ${dimCells}
+                </tr>`;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+        <div style="margin-top:8px; font-size:12.5px; color:var(--muted);">Class average: ${classRatingPercent(sessionAvg)}</div>
+      </div>`;
+    });
+  }
+
+  html += `<button type="button" class="btn btn-outline" onclick="addClassRatingEntry()" style="margin-top:4px;">+ Add ${records.length ? 'Another' : 'First'} Class</button>`;
+
+  wrap.innerHTML = html;
+}
+
+function renderClassRatingMonthly(){
+  const wrap = document.getElementById('classRatingMonthWrap');
+  const month = classRatingMonthSelect.value; // 'YYYY-MM'
+  if(!month){
+    wrap.innerHTML = '<div class="empty-state"><div class="big">Pick a month</div>Select a month above to see its combined average.</div>';
+    return;
+  }
+  const sessions = STATE.classRatings.filter(r => (r.date||'').slice(0,7) === month);
+  const scores = [];
+  const dimScores = { performance:[], punctuality:[], behaviour:[] };
+  const daysMarked = new Set();
+  sessions.forEach(r=>{
+    let sessionHasScore = false;
+    Object.values(r.ratings||{}).forEach(sr=>{
+      CLASS_RATING_DIMENSIONS.forEach(d=>{
+        const sc = classRatingScore(sr ? sr[d.key] : null);
+        if(sc!==null){
+          scores.push(sc);
+          dimScores[d.key].push(sc);
+          sessionHasScore = true;
+        }
+      });
+    });
+    if(sessionHasScore) daysMarked.add(r.date);
+  });
+  const avg = scores.length ? (scores.reduce((a,b)=>a+b,0)/scores.length) : null;
+  const dimAvg = key => dimScores[key].length ? (dimScores[key].reduce((a,b)=>a+b,0)/dimScores[key].length) : null;
+
+  wrap.innerHTML = `<div style="display:flex; flex-wrap:wrap; gap:28px; align-items:center; margin:14px 0 4px; padding:12px 16px; border:1px solid var(--line); border-radius:8px; background:var(--input-bg);">
+    <div>
+      <div style="font-size:11px; text-transform:uppercase; letter-spacing:.4px; color:var(--muted);">Days Marked</div>
+      <div style="font-family:'Lora',serif; font-size:20px; font-weight:600;">${daysMarked.size}</div>
+    </div>
+    <div>
+      <div style="font-size:11px; text-transform:uppercase; letter-spacing:.4px; color:var(--muted);">Classes Rated</div>
+      <div style="font-family:'Lora',serif; font-size:20px; font-weight:600;">${sessions.length}</div>
+    </div>
+    <div>
+      <div style="font-size:11px; text-transform:uppercase; letter-spacing:.4px; color:var(--muted);">Month's Overall Average</div>
+      <div style="font-family:'Lora',serif; font-size:20px; font-weight:600; color:var(--chalk-green);">${classRatingPercent(avg)}</div>
+    </div>
+    ${CLASS_RATING_DIMENSIONS.map(d=>{
+      const v = dimAvg(d.key);
+      return `<div>
+      <div style="font-size:11px; text-transform:uppercase; letter-spacing:.4px; color:var(--muted);">${escapeHtml(d.label)} Avg</div>
+      <div style="font-family:'Lora',serif; font-size:20px; font-weight:600; color:var(--chalk-green);">${classRatingPercent(v)}</div>
+    </div>`;
+    }).join('')}
+  </div>`;
+}
+
+function renderClassRatingSummary(){
+  const body = document.getElementById('classRatingSummaryBody');
+  if(STATE.students.length===0 || STATE.classRatings.length===0){
+    body.innerHTML = '<tr><td colspan="6" class="empty-state">No ratings recorded yet</td></tr>';
+    return;
+  }
+  let html = '';
+  STATE.students.forEach(s=>{
+    const allScores = [];
+    const dimScores = { performance:[], punctuality:[], behaviour:[] };
+    STATE.classRatings.forEach(r=>{
+      const sr = (r.ratings||{})[s.id];
+      if(!sr) return;
+      CLASS_RATING_DIMENSIONS.forEach(d=>{
+        const sc = classRatingScore(sr[d.key]);
+        if(sc!==null){
+          allScores.push(sc);
+          dimScores[d.key].push(sc);
+        }
+      });
+    });
+    if(allScores.length===0) return;
+    const avg = allScores.reduce((a,b)=>a+b,0)/allScores.length;
+    const dimAvgStr = key => dimScores[key].length ? classRatingPercent(dimScores[key].reduce((a,b)=>a+b,0)/dimScores[key].length) : '—';
+    const photoHtml = s.photo
+      ? `<img class="chip-photo" src="${s.photo}" alt="${escapeHtml(s.name)}">`
+      : `<div class="chip-photo placeholder">${escapeHtml(initials(s.name))}</div>`;
+    html += `<tr><td><div class="student-chip">${photoHtml}<span>${escapeHtml(s.name)}</span></div></td><td class="num-cell">${allScores.length}</td><td class="num-cell">${dimAvgStr('performance')}</td><td class="num-cell">${dimAvgStr('punctuality')}</td><td class="num-cell">${dimAvgStr('behaviour')}</td><td class="num-cell">${classRatingPercent(avg)}</td></tr>`;
+  });
+  body.innerHTML = html || '<tr><td colspan="6" class="empty-state">No ratings recorded yet</td></tr>';
 }
 
 // ---- Attendance CSV import ----
@@ -9177,6 +9583,8 @@ async function init(){
   swapJuniorSeniorTeachersOnce(); // one-time fix: Junior/Senior teacher names were flipped
   seedDefaultSubjectTeachers(); // guarantees the 7 core subjects + teacher names exist
   correctDefaultTeacherNamesOnce(); // one-time fix: auto-filled defaults had Junior/Senior backwards
+  migrateClassRatingsToSessionModel(); // one-time: drop old class-rating formats, replaced by per-class-session rows with per-student ratings
+  migrateClassRatingsToDimensions(); // one-time: upgrade single-value per-student ratings to the 3-dimension (Performance/Punctuality/Behaviour) shape
   seedDefaultStudentsData(); // one-time: load in the admission-form data if the table has never been filled
   seedDefaultFund(); // one-time: pre-fill the Fund Account ledger with 50 blank rows if it's never been filled
   seedDefaultDeposit(); // one-time: pre-fill the Deposit Record if it's never been filled
