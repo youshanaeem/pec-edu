@@ -155,12 +155,96 @@ body{
   font-weight:700;
   letter-spacing:0.4px;
 }
+/* ---------- Today's Classes (floating card, right side below the
+   header, always visible — fed from the Timetable) ---------- */
+.today-classes-card{
+  position:fixed;
+  top:calc(var(--topbar-h) + 16px);
+  right:16px;
+  width:280px;
+  max-width:calc(100vw - 32px);
+  background:var(--paper-card);
+  color:var(--ink);
+  border:1px solid var(--line);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow);
+  padding:14px;
+  z-index:25;
+  font-family:'Inter',sans-serif;
+  letter-spacing:normal;
+}
+.today-classes-card h4{
+  margin:0 0 10px;
+  font-family:'Lora',serif;
+  font-size:13.5px;
+  font-weight:700;
+  color:var(--ink);
+  display:flex;
+  align-items:center;
+  gap:6px;
+}
+.today-classes-card h4 span.day-name{ color:var(--chalk-green); }
+.today-classes-list{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  max-height:340px;
+  overflow-y:auto;
+}
+.today-classes-item{
+  display:flex;
+  gap:10px;
+  padding:8px 10px;
+  border-radius:8px;
+  background:var(--paper);
+  border:1px solid var(--line);
+}
+.today-classes-item .time{
+  flex-shrink:0;
+  font-family:'IBM Plex Mono', monospace;
+  font-size:11px;
+  font-weight:600;
+  color:var(--chalk-green);
+  white-space:nowrap;
+  padding-top:1px;
+}
+.today-classes-item .details{ min-width:0; }
+.today-classes-item .subject{
+  font-size:12.5px;
+  font-weight:700;
+  color:var(--ink);
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.today-classes-item .meta{
+  font-size:11px;
+  color:var(--muted);
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.today-classes-item.is-paper .subject{ color:var(--coral); }
+.today-classes-item.is-holiday .subject{ color:var(--purple); }
+.today-classes-empty{
+  font-size:12.5px;
+  color:var(--muted);
+  text-align:center;
+  padding:14px 6px;
+}
+.today-classes-loading{
+  font-size:12.5px;
+  color:var(--muted);
+  text-align:center;
+  padding:14px 6px;
+}
 @media(max-width:640px){
   .top-bar{ font-size:13px; padding:8px 12px; gap:8px; }
   .top-bar-logo{ height:28px; }
   .theme-toggle{ padding:6px 9px; }
   .theme-toggle .label{ display:none; }
   .live-clock{ padding:6px 9px; }
+  .today-classes-card{ width:calc(100vw - 24px); right:12px; padding:12px; }
 }
 @media(max-width:400px){
   .top-bar-title{ font-size:11.5px; }
@@ -710,6 +794,13 @@ html.pec-authed #loginGate{ display:none; }
   </button>
 </header>
 
+<div class="today-classes-card" id="todayClassesCard">
+  <h4><span class="live-clock-dot"></span>Today —<span class="day-name" id="todayClassesDayName">—</span></h4>
+  <div id="todayClassesBody">
+    <div class="today-classes-loading">Loading…</div>
+  </div>
+</div>
+
 <div class="home-shell">
   <div class="page-heading">
     <h1>Access Panels</h1>
@@ -956,16 +1047,105 @@ setInterval(updateLiveClock, 1000);
 
 
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
 <script>
-const SUPABASE_URL = "https://zrrrncaumggttpfqqkjb.supabase.co";
-const SUPABASE_KEY = "sb_publishable_D4ptSUQFKCog6GsDdK4EFA_5YqwkABc";
+/* ---------- Today's Classes widget (reads the Timetable saved by the
+   Student Progress Tracker — same /api/state backend, same localStorage
+   fallback key, so it always mirrors whatever's on the Timetable tab). */
+(function(){
+  var TT_API_KEY = 'pec2026TrackSecure88xyz';
+  var TT_STORAGE_KEY = 'spt_data_v1';
+  var TT_DAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 
-const supabase = window.supabase.createClient(
-  SUPABASE_URL,
-  SUPABASE_KEY
-);
+  function formatTime12(hhmm){
+    if(!hhmm || hhmm.indexOf(':') === -1) return hhmm || '';
+    var parts = hhmm.split(':');
+    var h = parseInt(parts[0], 10);
+    var m = parts[1];
+    var ampm = h >= 12 ? 'PM' : 'AM';
+    var h12 = h % 12; if(h12 === 0) h12 = 12;
+    return h12 + ':' + m + ' ' + ampm;
+  }
+
+  function getTimetableFromLocalStorage(){
+    try{
+      var raw = localStorage.getItem(TT_STORAGE_KEY);
+      if(raw){
+        var parsed = JSON.parse(raw);
+        return parsed.timetable || [];
+      }
+    }catch(e){}
+    return [];
+  }
+
+  async function getTimetable(){
+    try{
+      var res = await fetch('/api/state', { headers: { 'x-api-key': TT_API_KEY } });
+      if(!res.ok) throw new Error('API responded with ' + res.status);
+      var json = await res.json();
+      if(json && json.data && json.data.timetable){
+        return json.data.timetable;
+      }
+      return getTimetableFromLocalStorage();
+    }catch(e){
+      return getTimetableFromLocalStorage();
+    }
+  }
+
+  function renderTodayClasses(entries){
+    var todayName = TT_DAY_NAMES[new Date().getDay()];
+    var dayNameEl = document.getElementById('todayClassesDayName');
+    if(dayNameEl) dayNameEl.textContent = todayName;
+
+    var todays = (entries || [])
+      .filter(function(e){ return e.day === todayName; })
+      .sort(function(a, b){ return (a.start || '').localeCompare(b.start || ''); });
+
+    var body = document.getElementById('todayClassesBody');
+    if(!body) return;
+
+    if(todays.length === 0){
+      body.innerHTML = '<div class="today-classes-empty">No classes scheduled for today.</div>';
+      return;
+    }
+
+    var html = '<div class="today-classes-list">';
+    todays.forEach(function(e){
+      var cls = 'today-classes-item';
+      var subject = escapeHtml(e.subject || '—');
+      if(e.isPaper){ cls += ' is-paper'; subject = '📄 PAPER' + (e.subject ? ' — ' + escapeHtml(e.subject) : ''); }
+      else if(e.isHoliday){ cls += ' is-holiday'; subject = '🏖️ HOLIDAY'; }
+      var meta = e.isHoliday ? '' :
+        [e.teacher, e.batch].filter(Boolean).map(escapeHtml).join(' · ');
+      html += '<div class="' + cls + '">' +
+        '<div class="time">' + formatTime12(e.start) + '<br>' + formatTime12(e.end) + '</div>' +
+        '<div class="details">' +
+          '<div class="subject">' + subject + '</div>' +
+          (meta ? '<div class="meta">' + meta + '</div>' : '') +
+        '</div>' +
+      '</div>';
+    });
+    html += '</div>';
+    body.innerHTML = html;
+  }
+
+  function escapeHtml(str){
+    var div = document.createElement('div');
+    div.textContent = str == null ? '' : String(str);
+    return div.innerHTML;
+  }
+
+  async function loadTodayClasses(){
+    var entries = await getTimetable();
+    renderTodayClasses(entries);
+  }
+
+  document.addEventListener('DOMContentLoaded', loadTodayClasses);
+  if(document.readyState === 'complete' || document.readyState === 'interactive'){
+    loadTodayClasses();
+  }
+  // Keep it fresh without needing any click — re-check every 5 minutes.
+  setInterval(loadTodayClasses, 5 * 60 * 1000);
+})();
 </script>
 </body>
 </html>
