@@ -478,6 +478,98 @@ body{
   letter-spacing:0.4px;
 }
 
+/* ---------- Today's Classes (right-aligned card that sits in the
+   normal page flow, right at the top of the main content area on
+   every panel — so it never overlaps tabs, buttons or wide tables.
+   Sticks in place while scrolling. Fed straight from STATE.timetable,
+   the same Timetable data the Administrator/Academia/Incharge/
+   Teachers/Examination panels manage) ---------- */
+.today-classes-row{
+  max-width:1180px;
+  margin:0 auto;
+  padding:20px 32px 0;
+  display:flex;
+  justify-content:flex-end;
+}
+.today-classes-card{
+  position:sticky;
+  top:calc(var(--topbar-h) + 12px);
+  width:280px;
+  max-width:100%;
+  background:var(--paper-card);
+  color:var(--ink);
+  border:1px solid var(--line);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow);
+  padding:14px;
+  z-index:5;
+  font-family:'Inter',sans-serif;
+  letter-spacing:normal;
+}
+.today-classes-card h4{
+  margin:0 0 10px;
+  font-family:'Lora',serif;
+  font-size:13.5px;
+  font-weight:700;
+  color:var(--ink);
+  display:flex;
+  align-items:center;
+  gap:6px;
+}
+.today-classes-card h4 span.day-name{ color:var(--chalk-green); }
+.today-classes-list{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  max-height:340px;
+  overflow-y:auto;
+}
+.today-classes-item{
+  display:flex;
+  gap:10px;
+  padding:8px 10px;
+  border-radius:8px;
+  background:var(--paper);
+  border:1px solid var(--line);
+}
+.today-classes-item .time{
+  flex-shrink:0;
+  font-family:'IBM Plex Mono', monospace;
+  font-size:11px;
+  font-weight:600;
+  color:var(--chalk-green);
+  white-space:nowrap;
+  padding-top:1px;
+}
+.today-classes-item .details{ min-width:0; }
+.today-classes-item .subject{
+  font-size:12.5px;
+  font-weight:700;
+  color:var(--ink);
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.today-classes-item .meta{
+  font-size:11px;
+  color:var(--muted);
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.today-classes-item.is-paper .subject{ color:var(--coral); }
+.today-classes-item.is-holiday .subject{ color:var(--coral); }
+.today-classes-empty{
+  font-size:12.5px;
+  color:var(--muted);
+  text-align:center;
+  padding:14px 6px;
+}
+@media(max-width:900px){
+  .today-classes-card{ position:static; width:100%; }
+  .today-classes-row{ padding:14px 14px 0; }
+}
+
 /* ---------- Cards ---------- */
 .card{
   background:var(--paper-card);
@@ -1382,6 +1474,15 @@ select#reportStudentSelect, select#rankSortSelect{ margin-bottom:0; }
 
 <main class="main-content">
 
+<div class="today-classes-row">
+  <div class="today-classes-card" id="todayClassesCard">
+    <h4><span class="live-clock-dot"></span>Today —<span class="day-name" id="todayClassesDayName">—</span></h4>
+    <div id="todayClassesBody">
+      <div class="today-classes-empty">No classes scheduled for today.</div>
+    </div>
+  </div>
+</div>
+
 <!-- ============================================================
      SECTION 1: STUDENTS — add/edit student profile + photo
      ============================================================ -->
@@ -1390,7 +1491,7 @@ select#reportStudentSelect, select#rankSortSelect{ margin-bottom:0; }
   <p class="section-sub">Add a new student, upload a picture, and view the list.</p>
 
   <div class="card" style="margin-bottom:20px;">
-    <h3><span class="dot"></span>📥 Bulk Import — Upload CSV (from Google Sheets / Excel)</h3>
+    <h3><span class="dot"></span>Bulk Import — Upload CSV (from Google Sheets / Excel)</h3>
     <p class="section-sub" style="margin-bottom:16px;">Upload your data here once — students, subjects, and marks are added automatically and used everywhere in the app (Subjects &amp; Marks, Attendance, Student Report, Class Ranking and Monthly Overview). <b>Junior/Senior Teacher names don't need to be in this file</b> — set and edit them directly on the website (Subjects &amp; Marks or Course Progress). Use the two options below to bring in this month's ("Current") file and, separately, an earlier month's ("Previous") file — each just needs a month and a CSV.</p>
 
     <div class="grid-2">
@@ -1477,7 +1578,7 @@ select#reportStudentSelect, select#rankSortSelect{ margin-bottom:0; }
       </form>
 
       <div style="margin-top:24px; padding-top:18px; border-top:1px dashed var(--line);">
-        <h3 style="font-size:13.5px;"><span class="dot" style="background:var(--coral);"></span>⚠️ Danger Zone</h3>
+        <h3 style="font-size:13.5px;"><span class="dot" style="background:var(--coral);"></span>Danger Zone</h3>
         <p class="hint" style="margin-bottom:10px;">Permanently deletes ALL saved data (students, subjects, marks, attendance, course progress) — use this before importing a fresh CSV.</p>
         <button type="button" class="btn btn-outline" id="resetAllDataBtn" style="border-color:var(--coral); color:var(--coral);">🗑️ Remove All Data</button>
       </div>
@@ -1531,7 +1632,7 @@ select#reportStudentSelect, select#rankSortSelect{ margin-bottom:0; }
 
   <div class="card" id="yearlyAssessmentCard" style="margin-top:20px;">
     <h3 style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-      <span class="dot" style="background:var(--amber);"></span>📅 Yearly Assessment Schedule
+      <span class="dot" style="background:var(--amber);"></span>Yearly Assessment Schedule
       <button type="button" class="btn btn-outline btn-sm" id="yttEditToggleBtn" style="margin-left:auto;">✏️ Edit</button>
     </h3>
     <p class="section-sub" style="margin-bottom:14px;">Click "Edit" to change months, papers, days, dates, and result dates directly in the table below — changes save automatically. Use the buttons to add/remove rows or subjects, or export the schedule as a CSV.</p>
@@ -2077,7 +2178,7 @@ select#reportStudentSelect, select#rankSortSelect{ margin-bottom:0; }
   <p class="section-sub">Junior &amp; Senior Teacher names are edited directly in the table below (click "Edit" next to the Teacher(s) column). Completed Chapters, In Progress Chapters, Total Chapters, Remaining Chapters, and all percentages are calculated automatically from the topic tick marks in the <strong>Course Breakup</strong> tab — click "Edit" on the numbers only if you'd rather type your own for a subject.</p>
 
   <div class="card" style="margin-bottom:20px;">
-    <h3><span class="dot"></span>📥 Import Course Progress (CSV) — optional</h3>
+    <h3><span class="dot"></span>Import Course Progress (CSV) — optional</h3>
     <p class="section-sub" style="margin-bottom:10px;">Only needed if you'd rather type your own Completed / In Progress / Total Chapters numbers for many subjects at once instead of using the table below. Subjects are matched by name — if a subject doesn't exist yet, it's added automatically. Junior/Senior Teacher names don't need to be in this file — edit them directly in the table below instead.</p>
     <label for="courseProgressCsvFileInput">Choose CSV File</label>
     <input type="file" id="courseProgressCsvFileInput" accept=".csv,text/csv">
@@ -2116,7 +2217,7 @@ select#reportStudentSelect, select#rankSortSelect{ margin-bottom:0; }
 
   <div class="card">
     <h3 style="display:flex; align-items:center; flex-wrap:wrap; gap:10px;">
-      <span><span class="dot"></span>Course Progress — <span id="cpHeadingClass">Class</span> (<span id="cpHeadingYear">Year</span>) &nbsp;·&nbsp; Month: <span id="cpHeadingMonth">—</span></span>
+      <span><span class="dot" style="margin-right:8px;"></span>Course Progress — <span id="cpHeadingClass">Class</span> (<span id="cpHeadingYear">Year</span>) &nbsp;·&nbsp; Month: <span id="cpHeadingMonth">—</span></span>
       <button type="button" class="btn btn-outline btn-sm" id="cpEditToggleBtn" style="margin-left:auto;">✏️ Edit</button>
     </h3>
     <p class="section-sub" style="margin-top:-6px;">Completed / In Progress / Total Chapters are calculated automatically from the tick marks in <strong>Course Breakup</strong> — a chapter counts as Completed only once every one of its topics is ticked; a partly-ticked chapter counts as In Progress, weighted by how many of its topics are done. Click "Edit" only if you want to type in your own numbers instead.</p>
@@ -2230,7 +2331,7 @@ select#reportStudentSelect, select#rankSortSelect{ margin-bottom:0; }
   <p class="section-sub">Pick a date, mark each student Present, Absent, or Leave, and track their overall attendance percentage.</p>
 
   <div class="card">
-    <h3><span class="dot"></span>📥 Bulk Import — Upload Attendance CSV</h3>
+    <h3><span class="dot"></span>Bulk Import — Upload Attendance CSV</h3>
     <p class="section-sub" style="margin-bottom:16px;">Already have attendance in a spreadsheet? Upload it here — each row is matched to a student (by Roll Number, or by Name if roll isn't found) and filed under the date given.</p>
     <label for="attendanceCsvFileInput">Choose CSV File</label>
     <input type="file" id="attendanceCsvFileInput" accept=".csv,text/csv">
@@ -2327,7 +2428,7 @@ select#reportStudentSelect, select#rankSortSelect{ margin-bottom:0; }
     <p class="section-sub" style="margin-bottom:14px;">Day-wise attendance for every student across the whole month. Sundays are marked as holidays automatically.</p>
 
     <div style="margin-bottom:18px; padding-bottom:16px; border-bottom:1px solid var(--line);">
-      <h3 style="font-size:13.5px;"><span class="dot" style="background:var(--coral);"></span>📥 Import Monthly Sheet (Grid Format)</h3>
+      <h3 style="font-size:13.5px;"><span class="dot" style="background:var(--coral);"></span>Import Monthly Sheet (Grid Format)</h3>
       <p class="section-sub" style="margin-bottom:12px;">Already have a whole month's attendance in a grid — one row per student, one column per day? Upload it here and it will display directly in the grid below, for the month currently selected.</p>
       <label for="monthlyAttendanceCsvFileInput">Choose CSV File</label>
       <input type="file" id="monthlyAttendanceCsvFileInput" accept=".csv,text/csv">
@@ -2395,7 +2496,7 @@ select#reportStudentSelect, select#rankSortSelect{ margin-bottom:0; }
   <p class="section-sub">Evening classes, 6:00 PM – 9:00 PM. Import from a sheet, add/edit entries directly below, or drag a class block on the grid to reschedule it — changes appear instantly.</p>
 
   <div class="card" id="timetableBulkImportCard" style="margin-bottom:20px;">
-    <h3><span class="dot"></span>📥 Bulk Import — Upload Timetable CSV (from Google Sheets / Excel)</h3>
+    <h3><span class="dot"></span>Bulk Import — Upload Timetable CSV (from Google Sheets / Excel)</h3>
     <p class="section-sub" style="margin-bottom:16px;">Upload your weekly schedule here — every row becomes one class block on the timetable below.</p>
     <label for="timetableCsvFileInput">Choose CSV File</label>
     <input type="file" id="timetableCsvFileInput" accept=".csv,text/csv">
@@ -2637,8 +2738,8 @@ select#reportStudentSelect, select#rankSortSelect{ margin-bottom:0; }
 
   <!-- NEW MOM FORM -->
   <div class="card" id="momFormCard">
-    <div class="card-title" style="display:flex;align-items:center;gap:10px;">
-      ✍️ New Meeting Minutes
+    <div class="card-title" style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+      New Meeting Minutes
       <span class="pill" id="momFormDatePill"></span>
     </div>
 
@@ -2726,7 +2827,7 @@ select#reportStudentSelect, select#rankSortSelect{ margin-bottom:0; }
 
   <!-- SAVED MOMs -->
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
-    <h2 class="section-title" style="font-size:18px;margin:0;">📂 Saved MOMs</h2>
+    <h2 class="section-title" style="font-size:18px;margin:0;">Saved MOMs</h2>
   </div>
   <div id="momSavedList"></div>
 </div>
@@ -7454,9 +7555,56 @@ function ttSyncMetaInputs(){
   if(yearSel) yearSel.value = STATE.timetableMeta.year || '';
 }
 
+// Today's Classes — the small floating card under the top bar on every
+// panel's landing page. Reads directly from STATE.timetable (no extra
+// fetch needed, since this page already has it in memory) and re-renders
+// itself every time renderTimetable() runs, so it always mirrors
+// whatever's on the Timetable tab.
+function renderTodayClassesWidget(){
+  const body = document.getElementById('todayClassesBody');
+  if(!body) return;
+  const todayName = TT_DAYS[(new Date().getDay() + 6) % 7]; // JS Sunday=0 -> TT_DAYS index 6
+  const dayNameEl = document.getElementById('todayClassesDayName');
+  if(dayNameEl) dayNameEl.textContent = todayName;
+
+  const todays = (STATE.timetable || [])
+    .filter(e => e.day === todayName)
+    .sort((a, b) => ttTimeToMinutes(a.start) - ttTimeToMinutes(b.start));
+
+  if(todays.length === 0){
+    body.innerHTML = '<div class="today-classes-empty">No classes scheduled for today.</div>';
+    return;
+  }
+
+  let html = '<div class="today-classes-list">';
+  todays.forEach(e=>{
+    let cls = 'today-classes-item';
+    let subject = escapeHtml(e.subject || '—');
+    let meta = [e.teacher, e.batch].filter(Boolean).map(escapeHtml).join(' · ');
+    if(e.isPaper){
+      cls += ' is-paper';
+      subject = '📄 PAPER' + (e.subject ? ' — ' + escapeHtml(e.subject) : '');
+    }else if(e.isHoliday){
+      cls += ' is-holiday';
+      subject = '🏖️ HOLIDAY';
+      meta = '';
+    }
+    html += `<div class="${cls}">
+      <div class="time">${formatTT12(e.start)}<br>${formatTT12(e.end)}</div>
+      <div class="details">
+        <div class="subject">${subject}</div>
+        ${meta ? `<div class="meta">${meta}</div>` : ''}
+      </div>
+    </div>`;
+  });
+  html += '</div>';
+  body.innerHTML = html;
+}
+
 function renderTimetable(){
   const wrap = document.getElementById('timetableGridWrap');
   const listWrap = document.getElementById('timetableListWrap');
+  renderTodayClassesWidget();
   if(!wrap) return;
 
   if(STATE.timetable.length===0){
@@ -9619,6 +9767,7 @@ async function init(){
   momInit();
   updateLiveClock();
   setInterval(updateLiveClock, 1000);
+  setInterval(renderTodayClassesWidget, 60 * 1000); // catches the midnight day-rollover
 
   // Re-apply the last-viewed tab now that STATE has actually finished
   // loading from the DB/localStorage. This is what actually fixes/
