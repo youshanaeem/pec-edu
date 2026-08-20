@@ -489,13 +489,10 @@ body{
   max-width:1180px;
   margin:0 auto;
   padding:20px 32px 0;
-  display:flex;
-  justify-content:flex-end;
 }
 .today-classes-card{
-  position:sticky;
-  top:calc(var(--topbar-h) + 12px);
-  width:280px;
+  position:static;
+  width:100%;
   max-width:100%;
   background:var(--paper-card);
   color:var(--ink);
@@ -687,6 +684,9 @@ input:focus, select:focus{
   color:var(--ink-soft);
 }
 .btn-outline:hover{ border-color:var(--ink-soft); }
+.btn:disabled, .btn-outline:disabled{ opacity:0.45; cursor:not-allowed; filter:grayscale(0.3); }
+.btn:disabled:hover{ border-color:var(--coral); }
+#resetAllDataLockBtn.is-unlocked{ border-color:var(--chalk-green); color:var(--chalk-green); }
 .btn-danger{ background:var(--coral-soft); color:var(--coral); }
 .btn-danger:hover{ filter:brightness(0.97); }
 .btn-late{ background:var(--late-soft); color:var(--late); }
@@ -1477,7 +1477,7 @@ select#reportStudentSelect, select#rankSortSelect{ margin-bottom:0; }
 
 <div class="today-classes-row">
   <div class="today-classes-card" id="todayClassesCard">
-    <h4><span class="live-clock-dot"></span>Today —<span class="day-name" id="todayClassesDayName">—</span></h4>
+    <h4><span class="live-clock-dot"></span>Today's Classes —<span class="day-name" id="todayClassesDayName">—</span></h4>
     <div id="todayClassesBody">
       <div class="today-classes-empty">No classes scheduled for today.</div>
     </div>
@@ -1581,7 +1581,10 @@ select#reportStudentSelect, select#rankSortSelect{ margin-bottom:0; }
       <div style="margin-top:24px; padding-top:18px; border-top:1px dashed var(--line);">
         <h3 style="font-size:13.5px;"><span class="dot" style="background:var(--coral);"></span>Danger Zone</h3>
         <p class="hint" style="margin-bottom:10px;">Permanently deletes ALL saved data (students, subjects, marks, attendance, course progress) — use this before importing a fresh CSV.</p>
-        <button type="button" class="btn btn-outline" id="resetAllDataBtn" style="border-color:var(--coral); color:var(--coral);">🗑️ Remove All Data</button>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <button type="button" class="btn btn-outline" id="resetAllDataBtn" style="border-color:var(--coral); color:var(--coral);" disabled title="Locked — click the lock icon to unlock">🗑️ Remove All Data</button>
+          <button type="button" id="resetAllDataLockBtn" title="Unlock Remove All Data" aria-label="Unlock Remove All Data" style="flex-shrink:0; width:34px; height:34px; border-radius:8px; border:1px solid var(--line); background:var(--paper); cursor:pointer; font-size:15px; line-height:1;">🔒</button>
+        </div>
       </div>
     </div>
 
@@ -3747,7 +3750,39 @@ function swapJuniorSeniorTeachersOnce(){
 
 /* ============================================================
    DANGER ZONE — wipe all data so a fresh CSV can be imported
+   The "Remove All Data" button stays locked/disabled until the
+   lock icon next to it is unlocked with a password.
+   (change the password below any time — just edit this one line)
    ============================================================ */
+var RESET_ALL_DATA_PASSWORD = 'PEC12345##';
+(function(){
+  var resetBtn = document.getElementById('resetAllDataBtn');
+  var lockBtn = document.getElementById('resetAllDataLockBtn');
+  if(!resetBtn || !lockBtn) return;
+
+  lockBtn.addEventListener('click', function(){
+    if(resetBtn.disabled){
+      var typed = prompt('Enter password to unlock "Remove All Data":');
+      if(typed === null) return;
+      if(typed === RESET_ALL_DATA_PASSWORD){
+        resetBtn.disabled = false;
+        resetBtn.title = 'Remove All Data';
+        lockBtn.textContent = '🔓';
+        lockBtn.title = 'Click to re-lock Remove All Data';
+        lockBtn.classList.add('is-unlocked');
+      } else {
+        alert('Incorrect password.');
+      }
+    } else {
+      resetBtn.disabled = true;
+      resetBtn.title = 'Locked — click the lock icon to unlock';
+      lockBtn.textContent = '🔒';
+      lockBtn.title = 'Unlock Remove All Data';
+      lockBtn.classList.remove('is-unlocked');
+    }
+  });
+})();
+
 document.getElementById('resetAllDataBtn').addEventListener('click', function(){
   var sure = confirm('This will permanently delete ALL students, subjects, marks, attendance and course progress. This cannot be undone.\n\nAre you sure you want to continue?');
   if(!sure) return;
