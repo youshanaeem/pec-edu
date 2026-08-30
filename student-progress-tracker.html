@@ -1026,7 +1026,14 @@ select#reportStudentSelect, select#rankSortSelect{ margin-bottom:0; }
    the user just chooses "Save as PDF" in the browser print dialog. */
 #printArea{ display:none; }
 @media print{
-  @page{ size: landscape; margin: 10mm; }
+  /* Naming the paper size explicitly (not just "landscape") makes more
+     browsers/print drivers actually honor it — "size: landscape" alone is
+     sometimes ignored and the print falls back to the printer's own
+     default (usually portrait), which is what made pages look small and
+     never actually turn landscape. If a specific print driver still
+     ignores this, landscape must be picked by hand in the print dialog's
+     Layout/Orientation dropdown — @page can only set the default. */
+  @page{ size: A4 landscape; margin: 10mm; }
   /* Hide every other top-level element with display:none (not just
      visibility:hidden) so it is removed from layout entirely — otherwise
      the hidden header/sidebar/tab content still reserves its full height
@@ -1034,6 +1041,8 @@ select#reportStudentSelect, select#rankSortSelect{ margin-bottom:0; }
   body > *{ display:none !important; }
   body > #printArea{
     display:block !important;
+    width:100%;
+    box-sizing:border-box;
     padding:20px;
     font-family:'Inter',sans-serif;
     color:#000;
@@ -1045,7 +1054,7 @@ select#reportStudentSelect, select#rankSortSelect{ margin-bottom:0; }
      rightmost columns (e.g. Percentage) on wide tables. Smaller font/
      padding keeps every column readable even with many subjects. */
   #printArea table{ width:100%; border-collapse:collapse; table-layout:fixed; }
-  #printArea th, #printArea td{ border:1px solid #999; padding:3px 4px; font-size:9px; text-align:left; word-wrap:break-word; overflow-wrap:break-word; }
+  #printArea th, #printArea td{ border:1px solid #999; padding:5px 6px; font-size:11px; text-align:left; word-wrap:break-word; overflow-wrap:break-word; }
   /* Students Data PDF: 24 columns is too many to print at the default
      size without columns overlapping/crowding each other — this uses the
      <colgroup> percentage widths (sized per field, e.g. Address/School
@@ -1061,13 +1070,15 @@ select#reportStudentSelect, select#rankSortSelect{ margin-bottom:0; }
      column (for horizontal scrolling) and a dash for empty cells — both
      need to be neutralised for print, plus explicit borders/alignment
      since the sticky positioning and generic left-align rules above
-     were making the "Student" header/column overlap and look broken. */
+     were making the "Student" header/column overlap and look broken.
+     Font/padding are bumped up from the original 8px so the printed grid
+     reads as a full-size page instead of a shrunken block of tiny text. */
   #printArea .monthly-att-table-print{ table-layout:fixed; width:100%; border-collapse:collapse; }
   #printArea .monthly-att-table-print th,
   #printArea .monthly-att-table-print td{
     border:1px solid #999;
-    padding:3px 2px;
-    font-size:8px;
+    padding:7px 3px;
+    font-size:11px;
     text-align:center;
     word-wrap:break-word;
     overflow-wrap:break-word;
@@ -1087,6 +1098,22 @@ select#reportStudentSelect, select#rankSortSelect{ margin-bottom:0; }
   #printArea .monthly-att-table-print td.att-absent{ background:#fde0e0; color:#000; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
   #printArea .monthly-att-table-print td.att-leave{ background:#fdf0d0; color:#000; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
   #printArea .monthly-att-table-print td.att-late{ background:#e2e2fb; color:#000; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+
+  /* Timetable print: the on-screen grid is built at a small pixel scale
+     for the panel view (see TT_PX_PER_MIN in the script), so it's rebuilt
+     at print time at a taller scale (TT_PRINT_PX_PER_MIN) instead of being
+     cloned as-is — that's what actually fixes the "chota" output. These
+     rules just make sure the taller grid isn't clipped or shrunk again by
+     the same scrollable/min-width rules the on-screen version uses. */
+  #printArea .tt-print-wrap{ width:100%; }
+  #printArea .tt-grid{ overflow:visible; width:100%; border:none; }
+  #printArea .tt-header-row, #printArea .tt-body-row{ min-width:0; width:100%; }
+  #printArea .tt-day-head{ font-size:13px; padding:8px 4px; }
+  #printArea .tt-time-label{ font-size:12px; }
+  #printArea .tt-block{ font-size:12px; padding:6px 8px; }
+  #printArea .tt-block-time{ font-size:11px; }
+  #printArea .tt-block-teacher, #printArea .tt-block-subject, #printArea .tt-block-batch{ font-size:11px; }
+  #printArea .tt-block-paper-label, #printArea .tt-block-holiday-label{ font-size:18px; }
 }
 /* ---------- Yearly Assessment Schedule (editable table, Students tab) ---------- */
 .ytt-table{
@@ -1609,6 +1636,12 @@ select#reportStudentSelect, select#rankSortSelect{ margin-bottom:0; }
           <button type="button" class="btn btn-outline" id="resetAllDataBtn" style="border-color:var(--coral); color:var(--coral);" disabled title="Locked — click the lock icon to unlock">🗑️ Remove All Data</button>
           <button type="button" id="resetAllDataLockBtn" title="Unlock Remove All Data" aria-label="Unlock Remove All Data" style="flex-shrink:0; width:34px; height:34px; border-radius:8px; border:1px solid var(--line); background:var(--paper); cursor:pointer; font-size:15px; line-height:1;">🔒</button>
         </div>
+
+        <p class="hint" style="margin:16px 0 10px;">Clears every student's marks — Report tab (Previous/Current), Progress tab, Ranking, and the full Monthly Overview history — so you can re-enter marks fresh. Students, subjects, attendance, and everything else stay untouched.</p>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <button type="button" class="btn btn-outline" id="resetMarksOnlyBtn" style="border-color:var(--coral); color:var(--coral);" disabled title="Locked — click the lock icon to unlock">🧮 Remove All Marks Only</button>
+          <button type="button" id="resetMarksOnlyLockBtn" title="Unlock Remove All Marks Only" aria-label="Unlock Remove All Marks Only" style="flex-shrink:0; width:34px; height:34px; border-radius:8px; border:1px solid var(--line); background:var(--paper); cursor:pointer; font-size:15px; line-height:1;">🔒</button>
+        </div>
       </div>
     </div>
 
@@ -1844,6 +1877,13 @@ select#reportStudentSelect, select#rankSortSelect{ margin-bottom:0; }
       </div>
     </div>
 
+    <div style="margin-bottom:14px; max-width:280px;">
+      <label for="progressMonthSelect">Show data for month</label>
+      <select id="progressMonthSelect"></select>
+    </div>
+
+    <div id="progressReadOnlyNote" style="display:none; margin-bottom:12px; font-size:12.5px; color:var(--muted); background:var(--panel-2, #f2f2f2); padding:8px 12px; border-radius:8px;"></div>
+
     <div style="overflow-x:auto;" id="progressTableWrap"><table id="marksTable"><thead><tr><th rowspan="2" style="vertical-align:middle;">Student</th><th rowspan="2" style="vertical-align:middle;">Roll</th><th colspan="2" style="text-align:center; border-bottom:1px solid var(--line);">Maths<br><span style="font-size:10px;font-weight:400;color:var(--muted);">(Total: 30)</span></th><th colspan="2" style="text-align:center; border-bottom:1px solid var(--line);">english<br><span style="font-size:10px;font-weight:400;color:var(--muted);">(Total: 30)</span></th><th colspan="2" style="text-align:center; border-bottom:1px solid var(--line);">chemistry<br><span style="font-size:10px;font-weight:400;color:var(--muted);">(Total: 30)</span></th><th colspan="2" style="text-align:center; border-bottom:1px solid var(--line);">Physics<br><span style="font-size:10px;font-weight:400;color:var(--muted);">(Total: 30)</span></th><th colspan="2" style="text-align:center; border-bottom:1px solid var(--line);">Sindhi<br><span style="font-size:10px;font-weight:400;color:var(--muted);">(Total: 30)</span></th><th colspan="2" style="text-align:center; border-bottom:1px solid var(--line);">Computer<br><span style="font-size:10px;font-weight:400;color:var(--muted);">(Total: 30)</span></th><th colspan="2" style="text-align:center; border-bottom:1px solid var(--line);">pst<br><span style="font-size:10px;font-weight:400;color:var(--muted);">(Total: 30)</span></th><th rowspan="2" style="vertical-align:middle; text-align:center;">Grand<br>Total</th><th rowspan="2" style="vertical-align:middle; text-align:center;">%</th></tr><tr><th style="text-align:center; color:var(--chalk-green);">Obtained</th><th style="text-align:center; color:var(--muted);">Max</th><th style="text-align:center; color:var(--chalk-green);">Obtained</th><th style="text-align:center; color:var(--muted);">Max</th><th style="text-align:center; color:var(--chalk-green);">Obtained</th><th style="text-align:center; color:var(--muted);">Max</th><th style="text-align:center; color:var(--chalk-green);">Obtained</th><th style="text-align:center; color:var(--muted);">Max</th><th style="text-align:center; color:var(--chalk-green);">Obtained</th><th style="text-align:center; color:var(--muted);">Max</th><th style="text-align:center; color:var(--chalk-green);">Obtained</th><th style="text-align:center; color:var(--muted);">Max</th><th style="text-align:center; color:var(--chalk-green);">Obtained</th><th style="text-align:center; color:var(--muted);">Max</th></tr></thead><tbody><tr>
       <td><strong>shuja</strong></td>
       <td style="color:var(--muted);">pec-01</td>
@@ -1909,8 +1949,10 @@ select#reportStudentSelect, select#rankSortSelect{ margin-bottom:0; }
       <label for="reportStudentSelect">Select Student</label>
       <select id="reportStudentSelect"><option value="stu_mrmgsh63ms54n">shuja (Roll pec-01)</option><option value="stu_mrmgsh64yqkl2">mehdi (Roll pec-02)</option><option value="stu_mrmgsh644km88">baqir (Roll pec-03)</option><option value="stu_mrmgsh64tdddu">irteza (Roll pec-04)</option><option value="stu_mrmgsh64afmuc">murtaza (Roll pec-05)</option></select>
     </div>
-    <div style="display:flex; align-items:flex-end;">
+    <div style="display:flex; align-items:flex-end; gap:10px; flex-wrap:wrap;">
+      <span class="active-month-pill" style="align-self:center; font-size:12px; font-weight:600; color:var(--muted); background:var(--panel-2, #f2f2f2); padding:6px 12px; border-radius:999px;">Recording: —</span>
       <button type="button" class="btn btn-outline btn-sm" id="reportAddStudentBtn">+ Add New Student</button>
+      <button type="button" class="btn btn-outline btn-sm" id="startNewMonthBtn" title="Archive this month's marks as Previous and clear Current for the new month">⏭️ Start New Month</button>
     </div>
   </div>
 
@@ -3342,6 +3384,7 @@ let STATE = {
   attendance: [],   // {id, studentId, date, status: 'present'|'absent'|'leave'|'late'}
   marksHistory: [], // {id, studentId, subjectId, month:'YYYY-MM', value}
   marksHistoryMigrated: false, // one-time flag: have we copied old prev/current marks into marksHistory?
+  activeMonth: currentCalendarMonth(), // 'YYYY-MM' — the month currently being recorded into Current/marks. Only advances via the "Start New Month" button, so entering marks never silently overwrites an unarchived month.
   courseProgress: [], // {subjectId, completed, inprogress, total} — chapter-wise progress per subject
   courseProgressMeta: {cls:'', year:'', month:''}, // class/year/month shown in the Course Progress heading
   timetable: [], // {id, day, start, end, teacher, subject, batch} — weekly class schedule (Administrator)
@@ -3399,6 +3442,7 @@ function applyParsedState(parsed){
   STATE.attendanceSettings = parsed.attendanceSettings || { lateCutoff: '18:00' };
   STATE.marksHistory = parsed.marksHistory || [];
   STATE.marksHistoryMigrated = parsed.marksHistoryMigrated || false;
+  STATE.activeMonth = parsed.activeMonth || currentCalendarMonth();
   STATE.courseProgress = parsed.courseProgress || [];
   STATE.courseProgressMeta = parsed.courseProgressMeta || {cls:'', year:'', month:''};
   STATE.timetable = parsed.timetable || [];
@@ -3766,6 +3810,7 @@ document.getElementById('resetAllDataBtn').addEventListener('click', function(){
   STATE.faceDescriptors = {};
   STATE.marksHistory = [];
   STATE.marksHistoryMigrated = false;
+  STATE.activeMonth = currentCalendarMonth();
   STATE.courseProgress = [];
   STATE.courseProgressMeta = {cls:'', year:'', month:''};
   STATE.timetable = [];
@@ -3782,6 +3827,61 @@ document.getElementById('resetAllDataBtn').addEventListener('click', function(){
   saveState();
 
   alert('All data has been removed. You can now import a fresh CSV file.');
+  location.reload();
+});
+
+/* ------------------------------------------------------------
+   "Remove All Marks Only" — same locked-button pattern as above,
+   but scoped to just STATE.marks + STATE.marksHistory. Students,
+   subjects, attendance, and every other section are left exactly
+   as they are, so this is safe to use mid-term to wipe marks and
+   start entering a fresh set without re-creating the class list.
+   ------------------------------------------------------------ */
+(function(){
+  var resetBtn = document.getElementById('resetMarksOnlyBtn');
+  var lockBtn = document.getElementById('resetMarksOnlyLockBtn');
+  if(!resetBtn || !lockBtn) return;
+
+  lockBtn.addEventListener('click', function(){
+    if(resetBtn.disabled){
+      var typed = prompt('Enter password to unlock "Remove All Marks Only":');
+      if(typed === null) return;
+      if(typed === RESET_ALL_DATA_PASSWORD){
+        resetBtn.disabled = false;
+        resetBtn.title = 'Remove All Marks Only';
+        lockBtn.textContent = '🔓';
+        lockBtn.title = 'Click to re-lock Remove All Marks Only';
+        lockBtn.classList.add('is-unlocked');
+      } else {
+        alert('Incorrect password.');
+      }
+    } else {
+      resetBtn.disabled = true;
+      resetBtn.title = 'Locked — click the lock icon to unlock';
+      lockBtn.textContent = '🔒';
+      lockBtn.title = 'Unlock Remove All Marks Only';
+      lockBtn.classList.remove('is-unlocked');
+    }
+  });
+})();
+
+document.getElementById('resetMarksOnlyBtn').addEventListener('click', function(){
+  var sure = confirm('This will permanently delete every student\'s marks — Report (Previous/Current), Progress tab, Ranking, and the entire Monthly Overview history.\n\nStudents, subjects, attendance and everything else will stay untouched.\n\nThis cannot be undone. Continue?');
+  if(!sure) return;
+  var typed = prompt('Type MARKS to confirm you want to remove all marks data:');
+  if(typed !== 'MARKS'){
+    alert('Cancelled. No data was deleted.');
+    return;
+  }
+
+  STATE.marks = [];
+  STATE.marksHistory = [];
+  STATE.marksHistoryMigrated = false;
+  STATE.activeMonth = currentCalendarMonth();
+
+  saveState();
+
+  alert('All marks data has been removed. Students and everything else are untouched — you can start entering fresh marks now.');
   location.reload();
 });
 
@@ -4865,6 +4965,10 @@ document.getElementById('marksEditToggleBtn').addEventListener('click', ()=>{
   renderMarksTable();
 });
 
+document.getElementById('progressMonthSelect').addEventListener('change', ()=>{
+  renderMarksTable();
+});
+
 document.getElementById('marksAddStudentBtn').addEventListener('click', ()=>{
   const stu = {id:uid('stu'), name:'New Student', roll:'', cls:'—', photo:''};
   STATE.students.push(stu);
@@ -4876,29 +4980,78 @@ document.getElementById('marksAddStudentBtn').addEventListener('click', ()=>{
   renderMarksTable();
 });
 
+function refreshProgressMonthSelect(){
+  const sel = document.getElementById('progressMonthSelect');
+  if(!sel) return;
+  const activeMonth = STATE.activeMonth || currentCalendarMonth();
+  const months = Array.from(new Set([activeMonth, ...getMonthsWithData()])).sort().reverse();
+  const prevVal = sel.value;
+  sel.innerHTML = months.map(m=>
+    `<option value="${m}">${monthLabel(m)}${m===activeMonth ? ' (current)' : ''}</option>`
+  ).join('');
+  // Keep whatever the user had selected if it's still valid; otherwise default to the active month.
+  sel.value = months.includes(prevVal) ? prevVal : activeMonth;
+}
+
 function renderMarksTable(){
   progressSyncMetaInputs();
+  refreshProgressMonthSelect();
   const wrap = document.getElementById('progressTableWrap');
   if(!wrap) return;
 
+  const activeMonth = STATE.activeMonth || currentCalendarMonth();
+  const monthSel = document.getElementById('progressMonthSelect');
+  const selectedMonth = (monthSel && monthSel.value) || activeMonth;
+  const isActiveMonth = selectedMonth === activeMonth;
+  // Only the active (current) month can be typed into directly — a past
+  // month's numbers are locked and read from marksHistory instead, so
+  // switching months to look something up can never overwrite live data.
+  const effectiveEditMode = marksEditMode && isActiveMonth;
+
+  const editBtn = document.getElementById('marksEditToggleBtn');
+  if(editBtn) editBtn.style.display = isActiveMonth ? '' : 'none';
+  const addBtn = document.getElementById('marksAddStudentBtn');
+  if(addBtn && !isActiveMonth) addBtn.style.display = 'none';
+  const note = document.getElementById('progressReadOnlyNote');
+  if(note){
+    if(isActiveMonth){
+      note.style.display = 'none';
+    }else{
+      note.style.display = 'block';
+      note.textContent = `Viewing ${monthLabel(selectedMonth)} — read-only. Switch back to "${monthLabel(activeMonth)} (current)" above to edit marks.`;
+    }
+  }
+
+  // Historical months: pull each student/subject's value straight from
+  // marksHistory (month-tagged, never overwritten by later months).
+  const historyValue = (studentId, subjectId) => {
+    const h = STATE.marksHistory.find(x=>x.studentId===studentId && x.subjectId===subjectId && x.month===selectedMonth);
+    return h ? h.value : null;
+  };
+  const hasDataFor = (studentId, subjectId) =>
+    isActiveMonth
+      ? STATE.marks.some(m=>m.studentId===studentId && m.subjectId===subjectId && m.current!=null)
+      : STATE.marksHistory.some(h=>h.studentId===studentId && h.subjectId===subjectId && h.month===selectedMonth);
+
   // In edit mode, show every subject and every student (even blank ones) so
-  // there's always something to type into. Read-only mode keeps the original
-  // behaviour of only showing subjects/students that already have marks.
-  const subjects = marksEditMode
+  // there's always something to type into. Read-only mode (or a historical
+  // month) keeps the original behaviour of only showing subjects/students
+  // that already have marks for the month being viewed.
+  const subjects = effectiveEditMode
     ? STATE.subjects
-    : STATE.subjects.filter(s=>STATE.marks.some(m=>m.subjectId===s.id));
-  const students = marksEditMode
+    : STATE.subjects.filter(s=>STATE.students.some(stu=>hasDataFor(stu.id, s.id)));
+  const students = effectiveEditMode
     ? STATE.students
-    : STATE.students.filter(s=>STATE.marks.some(m=>m.studentId===s.id));
+    : STATE.students.filter(stu=>STATE.subjects.some(s=>hasDataFor(stu.id, s.id)));
 
   if(subjects.length===0 || students.length===0){
-    wrap.innerHTML = marksEditMode
+    wrap.innerHTML = effectiveEditMode
       ? '<div class="empty-state"><div class="big">No students yet</div>Click "+ Add Student" above, or import a CSV, to get started.</div>'
-      : '<div class="empty-state"><div class="big">No marks records yet</div>Import a CSV above, or click "Edit" to add students and marks manually.</div>';
+      : `<div class="empty-state"><div class="big">No marks for ${escapeHtml(monthLabel(selectedMonth))}</div>${isActiveMonth ? 'Import a CSV above, or click "Edit" to add students and marks manually.' : 'Nothing was recorded for this month.'}</div>`;
     return;
   }
 
-  let html = `<table id="marksTable"${marksEditMode ? ' class="cb-table"' : ''}><thead>`;
+  let html = `<table id="marksTable"${effectiveEditMode ? ' class="cb-table"' : ''}><thead>`;
 
   html += '<tr>';
   html += '<th rowspan="2" style="vertical-align:middle;">Student</th>';
@@ -4908,7 +5061,7 @@ function renderMarksTable(){
   });
   html += '<th rowspan="2" style="vertical-align:middle; text-align:center;">Grand<br>Total</th>';
   html += '<th rowspan="2" style="vertical-align:middle; text-align:center;">%</th>';
-  if(marksEditMode) html += '<th rowspan="2" style="width:40px;"></th>';
+  if(effectiveEditMode) html += '<th rowspan="2" style="width:40px;"></th>';
   html += '</tr>';
 
   html += '<tr>';
@@ -4921,7 +5074,7 @@ function renderMarksTable(){
 
   students.forEach(stu=>{
     const stuMarks = STATE.marks.filter(m=>m.studentId===stu.id);
-    if(!marksEditMode && stuMarks.length===0) return; // skip students with no marks at all
+    if(!effectiveEditMode && !STATE.subjects.some(s=>hasDataFor(stu.id, s.id))) return; // skip students with nothing for this month
 
     let grandObtained = 0;
     let grandMax = 0;
@@ -4929,7 +5082,7 @@ function renderMarksTable(){
 
     const cellsHtml = subjects.map(sub=>{
       const mark = stuMarks.find(m=>m.subjectId===sub.id);
-      const cur = mark ? (mark.current ?? null) : null;
+      const cur = isActiveMonth ? (mark ? (mark.current ?? null) : null) : historyValue(stu.id, sub.id);
       const maxVal = sub.max || 0;
 
       if(cur !== null){
@@ -4940,7 +5093,7 @@ function renderMarksTable(){
         grandMax += maxVal;
       }
 
-      if(marksEditMode){
+      if(effectiveEditMode){
         return `<td class="num-cell" style="text-align:center;" contenteditable="true" data-student="${stu.id}" data-subject="${sub.id}" data-field="current">${cur !== null ? cur : ''}</td>`
           + `<td style="text-align:center;color:var(--muted);font-size:12px;" contenteditable="true" data-subject="${sub.id}" data-field="max">${maxVal}</td>`;
       }
@@ -4956,13 +5109,13 @@ function renderMarksTable(){
       ? `<td class="num-cell" style="text-align:center;color:var(--muted);">—</td><td style="text-align:center;color:var(--muted);">—</td>`
       : `<td class="num-cell" style="text-align:center;font-weight:700;">${grandObtained} / ${grandMax}</td><td class="num-cell" style="text-align:center;">${grandMax>0?((grandObtained/grandMax)*100).toFixed(1)+'%':'—'}</td>`;
 
-    const nameCell = marksEditMode
+    const nameCell = effectiveEditMode
       ? `<td contenteditable="true" data-student="${stu.id}" data-field="name"><strong>${escapeHtml(stu.name)}</strong></td>`
       : `<td><strong>${escapeHtml(stu.name)}</strong></td>`;
-    const rollCell = marksEditMode
+    const rollCell = effectiveEditMode
       ? `<td style="color:var(--muted);" contenteditable="true" data-student="${stu.id}" data-field="roll">${escapeHtml(stu.roll)}</td>`
       : `<td style="color:var(--muted);">${escapeHtml(stu.roll)}</td>`;
-    const delCell = marksEditMode ? `<td><button type="button" class="cb-del-row marks-del-row" data-student="${stu.id}" title="Delete student">🗑️</button></td>` : '';
+    const delCell = effectiveEditMode ? `<td><button type="button" class="cb-del-row marks-del-row" data-student="${stu.id}" title="Delete student">🗑️</button></td>` : '';
 
     html += `<tr>
       ${nameCell}
@@ -4985,7 +5138,7 @@ function renderMarksTable(){
 
   wrap.innerHTML = html;
 
-  if(!marksEditMode) return; // locked — nothing below is interactive until Edit is clicked
+  if(!effectiveEditMode) return; // locked — nothing below is interactive until Edit is clicked (and only available on the active month)
 
   wrap.querySelectorAll('td[data-field="name"]').forEach(td=>{
     td.addEventListener('blur', ()=>{
@@ -5015,6 +5168,7 @@ function renderMarksTable(){
       const val = td.textContent.trim();
       const mark = getOrCreateMark(td.dataset.student, td.dataset.subject);
       mark.current = val==='' ? null : (parseFloat(val)||0);
+      syncMarkCurrentToHistory(mark);
       saveState();
       renderMarksTable();
       renderReport();
@@ -6765,6 +6919,7 @@ function refreshReportDropdown(){
 }
 
 document.getElementById('reportStudentSelect').addEventListener('change', renderReport);
+document.getElementById('startNewMonthBtn').addEventListener('click', startNewMonth);
 
 document.getElementById('reportAddStudentBtn').addEventListener('click', ()=>{
   const stu = {id:uid('stu'), name:'New Student', roll:'', cls:'—', photo:''};
@@ -7005,6 +7160,7 @@ function renderReport(){
         const val = td.textContent.trim();
         const mark = getOrCreateMark(studentId, td.dataset.subject);
         mark.current = val==='' ? null : (parseFloat(val)||0);
+        syncMarkCurrentToHistory(mark);
         saveState();
         renderReport();
         renderRanking();
@@ -7173,6 +7329,67 @@ function migrateMarksToHistory(){
   });
   STATE.marksHistoryMigrated = true;
   saveState();
+}
+
+// Upsert the given mark's `current` value into STATE.marksHistory under
+// STATE.activeMonth. This runs on every edit to `current` (Marks table,
+// Report edit table, CSV import) so Monthly Overview always has an accurate
+// month-tagged record — independent of the prev/current slots on
+// STATE.marks, which only ever hold the latest two snapshots and used to
+// get silently overwritten with no month tracking at all.
+function syncMarkCurrentToHistory(mark){
+  if(!mark || mark.current==null || isNaN(mark.current)) return;
+  const month = STATE.activeMonth || currentCalendarMonth();
+  let entry = STATE.marksHistory.find(h=>h.studentId===mark.studentId && h.subjectId===mark.subjectId && h.month===month);
+  if(entry){
+    entry.value = mark.current;
+  }else{
+    STATE.marksHistory.push({ id: uid('mh'), studentId: mark.studentId, subjectId: mark.subjectId, month, value: mark.current });
+  }
+}
+
+// Explicit month rollover — this is what was missing before. Call this once
+// a month's marks are finished being entered. It:
+//  1) archives every student's current mark into marksHistory (safety net,
+//     in case something wasn't synced live),
+//  2) shifts current -> prev (so the Report's "Previous" column reflects the
+//     month that just ended, instead of being silently overwritten),
+//  3) clears current so it's obvious new numbers are needed,
+//  4) advances STATE.activeMonth so all of the above line up with the next
+//     month's entries.
+function startNewMonth(){
+  const endingMonth = STATE.activeMonth || currentCalendarMonth();
+  const nextMonth = shiftMonthKey(endingMonth, 1);
+  const ok = confirm(
+    'Start ' + monthLabel(nextMonth) + '?\n\n' +
+    monthLabel(endingMonth) + '\'s marks will be archived (safe in Monthly Overview) and moved into "Previous" on the Report tab.\n' +
+    '"Current" will be cleared so you can enter ' + monthLabel(nextMonth) + '\'s marks fresh.\n\n' +
+    'This cannot be undone automatically — make sure ' + monthLabel(endingMonth) + '\'s marks are complete first.'
+  );
+  if(!ok) return;
+
+  STATE.marks.forEach(mark=>{
+    syncMarkCurrentToHistory(mark);
+    mark.prev = mark.current;
+    mark.maxPrev = mark.maxCurrent;
+    mark.current = null;
+    mark.maxCurrent = null;
+  });
+  STATE.activeMonth = nextMonth;
+  saveState();
+  if(typeof renderMarksTable==='function') renderMarksTable();
+  if(typeof renderReport==='function') renderReport();
+  if(typeof renderRanking==='function') renderRanking();
+  if(typeof renderOverview==='function') renderOverview();
+  if(typeof refreshOverviewDropdowns==='function') refreshOverviewDropdowns();
+  updateActiveMonthPills();
+}
+
+function updateActiveMonthPills(){
+  const month = STATE.activeMonth || currentCalendarMonth();
+  document.querySelectorAll('.active-month-pill').forEach(el=>{
+    el.textContent = 'Recording: ' + monthLabel(month);
+  });
 }
 
 // All months that have at least one recorded entry, latest first
@@ -8173,6 +8390,73 @@ function renderTodayClassesWidget(){
   body.innerHTML = html;
 }
 
+// Builds the timetable grid markup. pxPerMin controls the vertical scale —
+// the on-screen grid uses the small TT_PX_PER_MIN so the whole 6-9pm block
+// fits in the panel without much scrolling, but that same tiny pixel height
+// looks tiny when cloned straight into a printed page. The print/PDF path
+// calls this again with a much larger pxPerMin (see TT_PRINT_PX_PER_MIN)
+// so the printed grid actually fills the page instead of sitting in a
+// small box with blank space around it. When forPrint is true, drag
+// handles/attributes are left off since the printed copy isn't interactive.
+function buildTimetableGridHtml(pxPerMin, forPrint){
+  const editable = !forPrint && ttTimetableEditable();
+  const totalH = Math.round((TT_END_MIN-TT_START_MIN)*pxPerMin);
+  let html = '<div class="tt-grid"><div class="tt-header-row"><div class="tt-time-col"></div>';
+  TT_DAYS.forEach(d=>{ html += `<div class="tt-day-head">${d}</div>`; });
+  html += '</div>';
+  html += `<div class="tt-body-row" style="height:${totalH}px;"><div class="tt-time-col">`;
+  for(let t=TT_START_MIN; t<=TT_END_MIN; t+=60){
+    const top = Math.round((t-TT_START_MIN)*pxPerMin);
+    const label = formatTT12(minutesToHHMM(t));
+    html += `<div class="tt-time-label" style="top:${top}px;">${label}</div>`;
+  }
+  html += '</div>';
+  TT_DAYS.forEach((d, di)=>{
+    html += `<div class="tt-day-col" data-day="${d}">`;
+    for(let t=TT_START_MIN; t<=TT_END_MIN; t+=60){
+      const top = Math.round((t-TT_START_MIN)*pxPerMin);
+      html += `<div class="tt-hline" style="top:${top}px;"></div>`;
+    }
+    const dayEntries = STATE.timetable
+      .filter(e=>e.day===d)
+      .map(e=>({
+        ...e,
+        s: Math.max(ttTimeToMinutes(e.start), TT_START_MIN),
+        en: Math.min(ttTimeToMinutes(e.end), TT_END_MIN)
+      }))
+      .filter(e=>e.en>e.s)
+      .sort((a,b)=> a.s-b.s || a.en-b.en);
+    const laidOut = layoutTimetableEntries(dayEntries);
+    const color = TT_COLORS[di % TT_COLORS.length];
+    laidOut.forEach(e=>{
+      const top = Math.round((e.s-TT_START_MIN)*pxPerMin);
+      const h = Math.max(Math.round((e.en-e.s)*pxPerMin), forPrint ? 34 : 20);
+      const widthPct = 100/e.cols;
+      const leftPct = e.col*widthPct;
+      const dragAttrs = editable ? `data-id="${e.id}"` : '';
+      if(e.isPaper){
+        html += `<div class="tt-block tt-block-paper${editable ? ' tt-draggable' : ''}" ${dragAttrs} style="top:${top}px; height:${h}px; left:calc(${leftPct}% + 2px); width:calc(${widthPct}% - 4px);">
+          <div class="tt-block-paper-label">PAPER</div>
+        </div>`;
+      }else if(e.isHoliday){
+        html += `<div class="tt-block tt-block-holiday${editable ? ' tt-draggable' : ''}" ${dragAttrs} style="top:${top}px; height:${h}px; left:calc(${leftPct}% + 2px); width:calc(${widthPct}% - 4px);">
+          <div class="tt-block-holiday-label">HOLIDAY</div>
+        </div>`;
+      }else{
+        html += `<div class="tt-block ${color}${editable ? ' tt-draggable' : ''}" ${dragAttrs} style="top:${top}px; height:${h}px; left:calc(${leftPct}% + 2px); width:calc(${widthPct}% - 4px);">
+          <div class="tt-block-time">${formatTT12(e.start)} - ${formatTT12(e.end)}</div>
+          <div class="tt-block-teacher">${escapeHtml(e.teacher)}</div>
+          <div class="tt-block-subject">${escapeHtml(e.subject)}</div>
+          <div class="tt-block-batch">${escapeHtml(e.batch)}</div>
+        </div>`;
+      }
+    });
+    html += '</div>';
+  });
+  html += '</div></div>';
+  return html;
+}
+
 function renderTimetable(){
   const wrap = document.getElementById('timetableGridWrap');
   const listWrap = document.getElementById('timetableListWrap');
@@ -8182,61 +8466,7 @@ function renderTimetable(){
   if(STATE.timetable.length===0){
     wrap.innerHTML = '<div class="empty-state"><div class="big">No timetable entries yet</div>Import a CSV or add a class from the form above.</div>';
   }else{
-    const totalH = Math.round((TT_END_MIN-TT_START_MIN)*TT_PX_PER_MIN);
-    let html = '<div class="tt-grid"><div class="tt-header-row"><div class="tt-time-col"></div>';
-    TT_DAYS.forEach(d=>{ html += `<div class="tt-day-head">${d}</div>`; });
-    html += '</div>';
-    html += `<div class="tt-body-row" style="height:${totalH}px;"><div class="tt-time-col">`;
-    for(let t=TT_START_MIN; t<=TT_END_MIN; t+=60){
-      const top = Math.round((t-TT_START_MIN)*TT_PX_PER_MIN);
-      const label = formatTT12(minutesToHHMM(t));
-      html += `<div class="tt-time-label" style="top:${top}px;">${label}</div>`;
-    }
-    html += '</div>';
-    TT_DAYS.forEach((d, di)=>{
-      html += `<div class="tt-day-col" data-day="${d}">`;
-      for(let t=TT_START_MIN; t<=TT_END_MIN; t+=60){
-        const top = Math.round((t-TT_START_MIN)*TT_PX_PER_MIN);
-        html += `<div class="tt-hline" style="top:${top}px;"></div>`;
-      }
-      const dayEntries = STATE.timetable
-        .filter(e=>e.day===d)
-        .map(e=>({
-          ...e,
-          s: Math.max(ttTimeToMinutes(e.start), TT_START_MIN),
-          en: Math.min(ttTimeToMinutes(e.end), TT_END_MIN)
-        }))
-        .filter(e=>e.en>e.s)
-        .sort((a,b)=> a.s-b.s || a.en-b.en);
-      const laidOut = layoutTimetableEntries(dayEntries);
-      const color = TT_COLORS[di % TT_COLORS.length];
-      laidOut.forEach(e=>{
-        const top = Math.round((e.s-TT_START_MIN)*TT_PX_PER_MIN);
-        const h = Math.max(Math.round((e.en-e.s)*TT_PX_PER_MIN), 20);
-        const widthPct = 100/e.cols;
-        const leftPct = e.col*widthPct;
-        const dragAttrs = ttTimetableEditable() ? `data-id="${e.id}"` : '';
-        if(e.isPaper){
-          html += `<div class="tt-block tt-block-paper${ttTimetableEditable() ? ' tt-draggable' : ''}" ${dragAttrs} style="top:${top}px; height:${h}px; left:calc(${leftPct}% + 2px); width:calc(${widthPct}% - 4px);">
-            <div class="tt-block-paper-label">PAPER</div>
-          </div>`;
-        }else if(e.isHoliday){
-          html += `<div class="tt-block tt-block-holiday${ttTimetableEditable() ? ' tt-draggable' : ''}" ${dragAttrs} style="top:${top}px; height:${h}px; left:calc(${leftPct}% + 2px); width:calc(${widthPct}% - 4px);">
-            <div class="tt-block-holiday-label">HOLIDAY</div>
-          </div>`;
-        }else{
-          html += `<div class="tt-block ${color}${ttTimetableEditable() ? ' tt-draggable' : ''}" ${dragAttrs} style="top:${top}px; height:${h}px; left:calc(${leftPct}% + 2px); width:calc(${widthPct}% - 4px);">
-            <div class="tt-block-time">${formatTT12(e.start)} - ${formatTT12(e.end)}</div>
-            <div class="tt-block-teacher">${escapeHtml(e.teacher)}</div>
-            <div class="tt-block-subject">${escapeHtml(e.subject)}</div>
-            <div class="tt-block-batch">${escapeHtml(e.batch)}</div>
-          </div>`;
-        }
-      });
-      html += '</div>';
-    });
-    html += '</div></div>';
-    wrap.innerHTML = html;
+    wrap.innerHTML = buildTimetableGridHtml(TT_PX_PER_MIN, false);
     wireTimetableDragDrop(wrap);
   }
 
@@ -8419,18 +8649,24 @@ if(timetableDownloadCsvBtn){
   });
 }
 
+// Printing used to clone the on-screen grid element directly, but that grid
+// is sized in pixels for a compact panel view (only ~330px tall in total),
+// so the printed page ended up with a small timetable box surrounded by
+// blank space no matter the paper size/orientation. Rebuilding the grid
+// here with a much larger TT_PRINT_PX_PER_MIN makes the printed version
+// stretch to fill an A4 landscape page properly.
+const TT_PRINT_PX_PER_MIN = 620 / (TT_END_MIN - TT_START_MIN); // ~620px tall body on the printed page
 const timetableDownloadPdfBtn = document.getElementById('timetableDownloadPdfBtn');
 if(timetableDownloadPdfBtn){
   timetableDownloadPdfBtn.addEventListener('click', function(){
     if(STATE.timetable.length===0){ alert('No timetable entries to download yet.'); return; }
-    const gridEl = document.querySelector('#timetableGridWrap .tt-grid');
-    if(!gridEl){ alert('Nothing to print yet.'); return; }
     const meta = STATE.timetableMeta || {cls:'', year:''};
     const metaLine = `Class: ${escapeHtml(meta.cls || '—')} | Academic Year: ${escapeHtml(meta.year || '—')}`;
     const logoSrc = STATE.paperLogo || DEFAULT_PAPER_LOGO;
     const logoTag = logoSrc ? `<img src="${logoSrc}" alt="logo" style="height:56px;width:56px;object-fit:contain;filter:grayscale(1) brightness(0);">` : '';
+    const gridHtml = buildTimetableGridHtml(TT_PRINT_PX_PER_MIN, true);
     document.getElementById('printArea').innerHTML =
-      `<div style="display:flex; align-items:center; gap:14px; margin-bottom:4px;">${logoTag}<div><h2 style="margin:0;">Weekly Timetable — 6:00 PM to 9:00 PM</h2><p style="margin:2px 0 0;">${metaLine}</p></div></div>` + gridEl.outerHTML;
+      `<div class="tt-print-wrap"><div style="display:flex; align-items:center; gap:14px; margin-bottom:8px;">${logoTag}<div><h2 style="margin:0;">Weekly Timetable — 6:00 PM to 9:00 PM</h2><p style="margin:2px 0 0;">${metaLine}</p></div></div>` + gridHtml + '</div>';
     window.print();
   });
 }
@@ -9798,6 +10034,7 @@ async function init(){
   seedDefaultFund(); // one-time: pre-fill the Fund Account ledger with 50 blank rows if it's never been filled
   seedDefaultDeposit(); // one-time: pre-fill the Deposit Record if it's never been filled
   migrateMarksToHistory();
+  updateActiveMonthPills();
   renderStudentList();
   renderSubjectList();
   refreshMarksDropdowns();
