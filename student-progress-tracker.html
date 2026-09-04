@@ -740,6 +740,9 @@ tr:last-child td{ border-bottom:none; }
   padding:40px 20px;
   color:var(--muted);
   font-size:13.5px;
+  border:1.5px dashed var(--line);
+  border-radius:12px;
+  background:color-mix(in srgb, var(--paper) 60%, transparent);
 }
 .empty-state .big{
   font-family:'Lora',serif;
@@ -856,6 +859,415 @@ tr:last-child td{ border-bottom:none; }
   height:280px;
 }
 .chart-wrap.tall{ height:340px; }
+
+/* ---------- Dashboard — ring charts, stat grid ---------- */
+.dash-panel{ display:block; }
+#dashContent{
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:22px;
+  align-items:start;
+}
+.dash-panel-full{ grid-column:1 / -1; }
+/* Fix Deposit + Notes Fees — side by side, same height, no inner scroll
+   (the whole page scrolls instead, and the grid row stretches both cards
+   to match whichever list is taller). */
+#dashContent{ align-items:stretch; }
+.dash-panel-pair .card{ height:100%; display:flex; flex-direction:column; }
+@media(max-width:760px){
+  #dashContent{ grid-template-columns:1fr; }
+}
+
+/* Dashboard-only card refinement: a touch more room + a clean rule under
+   the header so each panel reads like a distinct report section. */
+#tab-dashboard .card{ padding:22px 24px; }
+#tab-dashboard .card h3{
+  font-size:16.5px;
+  padding-bottom:12px;
+  margin-bottom:16px;
+  border-bottom:1px solid var(--line);
+}
+#tab-dashboard .card h3 .dot{
+  width:9px; height:9px;
+  box-shadow:0 0 0 3px color-mix(in srgb, var(--chalk-green) 18%, transparent);
+}
+#tab-dashboard .section-title{ display:flex; align-items:center; gap:10px; }
+#tab-dashboard .section-title::after{
+  content:'LIVE';
+  font-family:'IBM Plex Mono',monospace;
+  font-size:10px;
+  font-weight:700;
+  letter-spacing:.6px;
+  color:var(--chalk-green);
+  background:var(--badge-up-bg);
+  padding:3px 9px;
+  border-radius:20px;
+}
+
+/* ---------- Fee Track — per-student list + loading-style bar ---------- */
+.fee-track-list{ display:flex; flex-direction:column; gap:10px; }
+.fee-track-row{
+  position:relative;
+  display:grid;
+  grid-template-columns:minmax(140px,1.3fr) minmax(160px,2fr) 112px;
+  align-items:center;
+  gap:18px;
+  padding:13px 16px 13px 18px;
+  border:1px solid var(--line);
+  border-radius:12px;
+  background:var(--paper-card);
+  box-shadow:0 1px 2px rgba(27,42,74,0.04);
+  transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+}
+.fee-track-row::before{
+  content:'';
+  position:absolute; left:0; top:8px; bottom:8px; width:4px;
+  border-radius:0 4px 4px 0;
+  background:var(--row-accent, var(--chalk-green));
+}
+.fee-track-row:hover{
+  transform:translateX(2px);
+  box-shadow:0 6px 16px rgba(27,42,74,0.08);
+  border-color:color-mix(in srgb, var(--row-accent, var(--chalk-green)) 45%, var(--line));
+}
+.fee-track-row.row-amber{ --row-accent:var(--amber); }
+.fee-track-row.row-coral{ --row-accent:var(--coral); }
+.fee-track-row.row-zero{ --row-accent:var(--coral); }
+.fee-track-row.row-paid{ --row-accent:var(--chalk-green); }
+@media(max-width:640px){
+  .fee-track-row{ grid-template-columns:1fr; gap:8px; }
+}
+.fee-track-name{
+  font-family:'Lora',serif;
+  font-weight:700;
+  font-size:14.5px;
+  color:var(--ink);
+  line-height:1.25;
+}
+.fee-track-roll{
+  display:inline-block;
+  font-family:'IBM Plex Mono',monospace;
+  font-size:10.5px;
+  color:var(--muted);
+  margin-top:4px;
+  padding:1px 8px;
+  border-radius:20px;
+  background:var(--badge-flat-bg);
+}
+.fee-track-bar-wrap{ display:flex; flex-direction:column; gap:6px; }
+.fee-track-bar-track{
+  position:relative;
+  height:15px;
+  border-radius:999px;
+  background:var(--badge-flat-bg);
+  border:1px solid var(--line);
+  overflow:hidden;
+}
+.fee-track-bar-fill{
+  height:100%;
+  border-radius:999px;
+  background:linear-gradient(90deg, var(--chalk-green-soft), var(--chalk-green));
+  transition:width .5s ease;
+}
+.fee-track-bar-fill.zero{
+  background:var(--coral-soft);
+}
+.fee-track-bar-fill.amber{
+  background:linear-gradient(90deg, #F0C077, var(--amber));
+}
+.fee-track-bar-fill.coral{
+  background:linear-gradient(90deg, #DD8078, var(--coral));
+}
+.fee-track-bar-label{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:11px;
+  color:var(--muted);
+  display:flex;
+  justify-content:space-between;
+}
+.fee-track-notes{
+  text-align:right;
+  font-family:'IBM Plex Mono',monospace;
+  font-weight:700;
+  font-size:14.5px;
+  color:var(--ink);
+}
+.fee-track-notes .lbl{
+  display:block;
+  font-family:'Inter',sans-serif;
+  font-weight:600;
+  font-size:9.5px;
+  text-transform:uppercase;
+  letter-spacing:.4px;
+  color:var(--muted);
+  margin-top:2px;
+}
+
+/* ---------- Dashboard — Students panel: small per-student ring charts ---------- */
+.mini-ring-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(132px,1fr));
+  gap:14px;
+}
+.mini-ring-card{
+  position:relative;
+  border:1px solid var(--line);
+  border-radius:14px;
+  background:var(--paper-card);
+  padding:16px 12px 15px;
+  text-align:center;
+  box-shadow:0 1px 2px rgba(27,42,74,0.05);
+  transition:transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+}
+.mini-ring-card::before{
+  content:'';
+  position:absolute; left:14px; right:14px; top:0; height:3px;
+  border-radius:0 0 3px 3px;
+  background:var(--tier-color, var(--line));
+  opacity:0.85;
+}
+.mini-ring-card:hover{
+  transform:translateY(-3px);
+  box-shadow:0 10px 20px rgba(27,42,74,0.10);
+  border-color:var(--tier-color, var(--line));
+}
+/* Tier accents — mirrors the ring's own colour logic (>=75 green, >=50 amber, else coral) */
+.mini-ring-card.tier-high{ --tier-color:var(--chalk-green); }
+.mini-ring-card.tier-mid{ --tier-color:var(--amber); }
+.mini-ring-card.tier-low{ --tier-color:var(--coral); }
+.mini-ring-card.tier-none{ --tier-color:var(--line); background:var(--paper); }
+.mini-ring-card.tier-none:hover{ transform:none; box-shadow:0 1px 2px rgba(27,42,74,0.05); border-color:var(--line); }
+
+.mini-ring-wrap{
+  position:relative;
+  height:92px;
+  width:92px;
+  margin:0 auto 10px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+/* Static placeholder ring drawn in pure CSS for students/subjects with no
+   data yet, so the card reads as "nothing recorded" rather than a broken
+   chart — replaces the bare canvas that Chart.js never gets to paint. */
+.mini-ring-wrap.mini-ring-wrap--empty{
+  border-radius:50%;
+  border:7px dashed var(--line);
+}
+.mini-ring-center{
+  position:absolute;
+  top:50%; left:50%;
+  transform:translate(-50%,-50%);
+  text-align:center;
+  pointer-events:none;
+}
+.mini-ring-center .mini-ring-value{
+  font-family:'Lora',serif;
+  font-size:16px;
+  font-weight:700;
+  color:var(--ink);
+  line-height:1;
+}
+.mini-ring-card.tier-none .mini-ring-center .mini-ring-value{ color:var(--muted); font-size:13px; }
+.mini-ring-name{
+  font-family:'Inter',sans-serif;
+  font-weight:600;
+  font-size:12px;
+  color:var(--ink);
+  line-height:1.25;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.mini-ring-roll{
+  display:inline-block;
+  font-family:'IBM Plex Mono',monospace;
+  font-size:10px;
+  color:var(--muted);
+  margin-top:4px;
+  padding:1px 8px;
+  border-radius:20px;
+  background:var(--badge-flat-bg);
+}
+
+.ring-wrap{
+  position:relative;
+  height:220px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+.ring-wrap.tall{ height:290px; }
+.ring-center{
+  position:absolute;
+  top:50%; left:50%;
+  transform:translate(-50%,-50%);
+  text-align:center;
+  pointer-events:none;
+}
+.ring-center .ring-value{
+  font-family:'Lora',serif;
+  font-size:28px;
+  font-weight:700;
+  color:var(--ink);
+  line-height:1;
+}
+.ring-center .ring-label{
+  font-size:10px;
+  text-transform:uppercase;
+  letter-spacing:.5px;
+  color:var(--muted);
+  margin-top:5px;
+}
+
+.stat-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(130px,1fr));
+  gap:12px;
+  margin-top:16px;
+}
+.stat-box{
+  background:var(--paper);
+  border:1px solid var(--line);
+  border-radius:10px;
+  padding:12px 14px;
+}
+.stat-box .stat-val{
+  font-family:'Lora',serif;
+  font-size:20px;
+  font-weight:700;
+  color:var(--ink);
+}
+.stat-box .stat-lbl{
+  font-size:10px;
+  text-transform:uppercase;
+  letter-spacing:.4px;
+  color:var(--muted);
+  margin-top:2px;
+}
+.dash-compare-rings{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:20px;
+}
+@media(max-width:640px){
+  .dash-compare-rings{ grid-template-columns:1fr; }
+  .ring-wrap{ height:190px; }
+  .ring-center .ring-value{ font-size:22px; }
+}
+
+/* ---------- Dashboard v2 — Class Average & Compare cards ---------- */
+.dash-hero-card{ position:relative; overflow:hidden; box-shadow:0 6px 24px rgba(27,42,74,0.08); }
+.dash-hero-card::before{
+  content:'';
+  position:absolute; top:0; left:0; right:0; height:4px;
+  background:linear-gradient(90deg, var(--chalk-green), var(--amber));
+  z-index:1;
+}
+.dash-hero-card .grid-2{ align-items:center; }
+
+.dash-ring-glow{ position:relative; transition:transform .25s ease; }
+.dash-ring-glow::after{
+  content:'';
+  position:absolute; inset:6%;
+  border-radius:50%;
+  background:radial-gradient(circle, color-mix(in srgb, var(--amber) 14%, transparent), transparent 70%);
+  z-index:-1;
+}
+.dash-ring-glow:hover{ transform:scale(1.035); }
+.dash-hero-card .ring-center .ring-value{ font-size:32px; }
+
+.dash-stat-grid{
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:12px;
+  margin-top:16px;
+}
+@media(max-width:520px){ .dash-stat-grid{ grid-template-columns:1fr; } }
+
+.dash-stat-tile{
+  position:relative;
+  background:var(--paper);
+  border:1px solid var(--line);
+  border-radius:12px;
+  padding:12px 14px;
+  display:flex;
+  align-items:center;
+  gap:11px;
+  overflow:hidden;
+  transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+}
+.dash-stat-tile::before{
+  content:'';
+  position:absolute; left:0; top:0; bottom:0; width:4px;
+  background:var(--tile-accent, var(--chalk-green));
+}
+.dash-stat-tile:hover{
+  transform:translateY(-2px);
+  box-shadow:0 8px 18px rgba(27,42,74,0.10);
+  border-color:var(--tile-accent, var(--chalk-green));
+}
+.dash-stat-icon{
+  width:32px; height:32px; flex:0 0 32px;
+  border-radius:9px;
+  display:flex; align-items:center; justify-content:center;
+  background:var(--tile-accent-soft, var(--amber-soft));
+  color:var(--tile-accent, var(--chalk-green));
+}
+.dash-stat-icon svg{ width:17px; height:17px; }
+.dash-stat-tile .stat-val{ font-family:'Lora',serif; font-size:18px; font-weight:700; color:var(--ink); line-height:1.15; }
+.dash-stat-tile .stat-lbl{ font-size:9.5px; text-transform:uppercase; letter-spacing:.4px; color:var(--muted); margin-top:2px; }
+
+.dash-stat-tile.tile-students{ --tile-accent:var(--ink-soft); --tile-accent-soft:color-mix(in srgb, var(--ink-soft) 14%, transparent); }
+.dash-stat-tile.tile-avg{ --tile-accent:var(--chalk-green); --tile-accent-soft:var(--amber-soft); }
+.dash-stat-tile.tile-high{ --tile-accent:var(--chalk-green-soft); --tile-accent-soft:color-mix(in srgb, var(--chalk-green-soft) 16%, transparent); }
+.dash-stat-tile.tile-low{ --tile-accent:var(--coral); --tile-accent-soft:var(--coral-soft); }
+
+/* Compare card */
+.dash-compare-toolbar{
+  display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+  background:var(--paper);
+  border:1px solid var(--line);
+  border-radius:12px;
+  padding:10px 14px;
+  margin-bottom:22px;
+}
+.dash-compare-toolbar .select-wrap{ flex:1; min-width:200px; }
+.dash-compare-toolbar label{ margin:0 0 3px; }
+.dash-compare-toolbar select{ margin-bottom:0; }
+
+.dash-compare-rings{ position:relative; }
+.dash-compare-rings::before{
+  content:'';
+  position:absolute; left:50%; top:12%; bottom:12%;
+  width:1px; background:var(--line);
+  transform:translateX(-50%);
+}
+@media(max-width:640px){ .dash-compare-rings::before{ display:none; } }
+
+.dash-vs-badge{
+  position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+  width:34px; height:34px; border-radius:50%;
+  background:var(--paper-card);
+  border:1px solid var(--line);
+  display:flex; align-items:center; justify-content:center;
+  font-family:'Lora',serif; font-size:11px; font-weight:700; color:var(--muted);
+  box-shadow:var(--shadow);
+  z-index:2;
+}
+@media(max-width:640px){ .dash-vs-badge{ display:none; } }
+
+.dash-trend-pill{
+  display:inline-flex; align-items:center; gap:6px;
+  font-family:'IBM Plex Mono',monospace; font-weight:600; font-size:12.5px;
+  padding:8px 14px; border-radius:20px;
+  border:1px solid transparent;
+  transition:background .2s ease;
+}
+.dash-trend-pill.trend-up{ background:color-mix(in srgb, var(--chalk-green) 14%, transparent); color:var(--chalk-green); border-color:color-mix(in srgb, var(--chalk-green) 35%, transparent); }
+.dash-trend-pill.trend-down{ background:var(--coral-soft); color:var(--coral); border-color:color-mix(in srgb, var(--coral) 35%, transparent); }
+.dash-trend-pill.trend-flat{ background:var(--amber-soft); color:var(--tag-text); }
+.dash-trend-pill.trend-empty{ background:var(--paper); color:var(--muted); border-color:var(--line); }
 
 select#reportStudentSelect, select#rankSortSelect{ margin-bottom:0; }
 
@@ -1454,23 +1866,24 @@ select#reportStudentSelect, select#rankSortSelect{ margin-bottom:0; }
   </div>
 
   <nav class="tab-nav">
-    <button class="tab-btn active" data-tab="tab-students"><span class="num">01</span>Students</button>
-    <button class="tab-btn" data-tab="tab-subjects"><span class="num">02</span>Subjects &amp; Marks</button>
-    <button class="tab-btn" data-tab="tab-report"><span class="num">03</span>Student Report</button>
-    <button class="tab-btn" data-tab="tab-ranking"><span class="num">04</span>Class Ranking</button>
-    <button class="tab-btn" data-tab="tab-overview"><span class="num">05</span>Monthly Overview</button>
-    <button class="tab-btn" data-tab="tab-courseprogress"><span class="num">06</span>Course Progress</button>
-    <button class="tab-btn" data-tab="tab-coursebreakup"><span class="num">07</span>Course Breakup</button>
-    <button class="tab-btn" data-tab="tab-attendance"><span class="num">08</span>Attendance</button>
-    <button class="tab-btn" data-tab="tab-timetable"><span class="num">09</span>Timetable</button>
-    <button class="tab-btn" data-tab="tab-students-data"><span class="num">10</span>Students Data</button>
-    <button class="tab-btn" data-tab="tab-mom"><span class="num">11</span>MOM's</button>
-    <button class="tab-btn" data-tab="tab-fund"><span class="num">12</span>Fund Account</button>
-    <button class="tab-btn" data-tab="tab-deposit"><span class="num">13</span>Deposit Record</button>
-    <button class="tab-btn" data-tab="tab-classrating"><span class="num">14</span>Daily Class Rating</button>
-    <button class="tab-btn" data-tab="tab-papertimetable"><span class="num">15</span>Monthly Paper Timetable</button>
-    <button class="tab-btn" data-tab="tab-awardlist"><span class="num">16</span>Award List</button>
-    <button class="tab-btn" data-tab="tab-invigilation"><span class="num">17</span>Invigilation List</button>
+    <button class="tab-btn active" data-tab="tab-dashboard"><span class="num">01</span>Dashboard</button>
+    <button class="tab-btn" data-tab="tab-students"><span class="num">02</span>Students</button>
+    <button class="tab-btn" data-tab="tab-subjects"><span class="num">03</span>Subjects &amp; Marks</button>
+    <button class="tab-btn" data-tab="tab-report"><span class="num">04</span>Student Report</button>
+    <button class="tab-btn" data-tab="tab-ranking"><span class="num">05</span>Class Ranking</button>
+    <button class="tab-btn" data-tab="tab-overview"><span class="num">06</span>Monthly Overview</button>
+    <button class="tab-btn" data-tab="tab-courseprogress"><span class="num">07</span>Course Progress</button>
+    <button class="tab-btn" data-tab="tab-coursebreakup"><span class="num">08</span>Course Breakup</button>
+    <button class="tab-btn" data-tab="tab-attendance"><span class="num">09</span>Attendance</button>
+    <button class="tab-btn" data-tab="tab-timetable"><span class="num">10</span>Timetable</button>
+    <button class="tab-btn" data-tab="tab-students-data"><span class="num">11</span>Students Data</button>
+    <button class="tab-btn" data-tab="tab-mom"><span class="num">12</span>MOM's</button>
+    <button class="tab-btn" data-tab="tab-fund"><span class="num">13</span>Fund Account</button>
+    <button class="tab-btn" data-tab="tab-deposit"><span class="num">14</span>Deposit Record</button>
+    <button class="tab-btn" data-tab="tab-classrating"><span class="num">15</span>Daily Class Rating</button>
+    <button class="tab-btn" data-tab="tab-papertimetable"><span class="num">16</span>Monthly Paper Timetable</button>
+    <button class="tab-btn" data-tab="tab-awardlist"><span class="num">17</span>Award List</button>
+    <button class="tab-btn" data-tab="tab-invigilation"><span class="num">18</span>Invigilation List</button>
   </nav>
 </aside>
 
@@ -1486,9 +1899,218 @@ select#reportStudentSelect, select#rankSortSelect{ margin-bottom:0; }
 </div>
 
 <!-- ============================================================
+     SECTION 0: DASHBOARD — whole-class average ring chart, plus a
+     current-month-vs-previous-month comparison view
+     ============================================================ -->
+<div id="tab-dashboard" class="section active">
+  <div class="section-title">Dashboard</div>
+  <p class="section-sub">A quick snapshot of how the whole class is doing — the combined class average as a ring chart, plus a month-vs-month comparison.</p>
+
+  <div id="dashContent">
+    <!-- ---- Students panel — every student, small ring chart each ---- -->
+    <div id="dash-studentprogress" class="dash-panel dash-panel-full">
+      <div class="card">
+        <h3><span class="dot"></span>Students — <span id="dashStuMonthLabel">Current Month</span> Progress</h3>
+        <p class="section-sub" style="margin-bottom:16px;">Every student, with a small ring chart showing their own current-month percentage (the percentage itself sits inside the ring).</p>
+
+        <div id="dashStuEmptyState" class="empty-state" style="display:none;">
+          <div class="big">No marks recorded yet</div>
+          Import a CSV or add marks in the Subjects &amp; Marks tab to see each student's progress here.
+        </div>
+
+        <div id="dashStuGrid" class="mini-ring-grid"></div>
+      </div>
+    </div>
+
+    <!-- ---- Overall Average panel — every student, avg % across ALL recorded months ---- -->
+    <div id="dash-overallavg" class="dash-panel dash-panel-full">
+      <div class="card">
+        <h3><span class="dot"></span>Overall Average — All Months</h3>
+        <p class="section-sub" style="margin-bottom:16px;">Every student's overall average percentage, calculated across every month recorded so far (Subjects &amp; Marks / CSV uploads) — updates automatically as new months are added.</p>
+
+        <div id="dashOverallAvgEmpty" class="empty-state" style="display:none;">
+          <div class="big">No marks recorded yet</div>
+          Import a CSV or add marks in the Subjects &amp; Marks tab to see each student's overall average here.
+        </div>
+
+        <div id="dashOverallAvgList" class="fee-track-list"></div>
+      </div>
+    </div>
+
+    <!-- ---- Overview panel ---- -->
+    <div id="dash-overview" class="dash-panel dash-panel-full active">
+      <div id="dashEmptyState" class="card" style="display:none;">
+        <div class="empty-state">
+          <div class="big">No marks recorded yet</div>
+          Import a CSV or add marks in the Subjects &amp; Marks tab to see the class average here.
+        </div>
+      </div>
+      <div id="dashOverviewCard" class="card dash-hero-card">
+        <h3><span class="dot"></span>Class Average — <span id="dashMonthLabel">Current Month</span></h3>
+        <div class="grid-2">
+          <div class="ring-wrap dash-ring-glow">
+            <canvas id="dashRingChart" height="0" style="display: block; box-sizing: border-box; height: 0px; width: 0px;" width="0"></canvas>
+            <div class="ring-center">
+              <div class="ring-value" id="dashRingValue">—</div>
+              <div class="ring-label">Class Average</div>
+            </div>
+          </div>
+          <div>
+            <div class="dash-stat-grid">
+              <div class="dash-stat-tile tile-students">
+                <div class="dash-stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+                <div><div class="stat-val" id="dashStatStudents">—</div><div class="stat-lbl">Students Counted</div></div>
+              </div>
+              <div class="dash-stat-tile tile-avg">
+                <div class="dash-stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg></div>
+                <div><div class="stat-val" id="dashStatAvg">—</div><div class="stat-lbl">Class Average</div></div>
+              </div>
+              <div class="dash-stat-tile tile-high">
+                <div class="dash-stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg></div>
+                <div><div class="stat-val" id="dashStatHigh">—</div><div class="stat-lbl">Highest Average</div></div>
+              </div>
+              <div class="dash-stat-tile tile-low">
+                <div class="dash-stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 17 13.5 8.5 8.5 13.5 2 7"/><polyline points="16 17 22 17 22 11"/></svg></div>
+                <div><div class="stat-val" id="dashStatLow">—</div><div class="stat-lbl">Lowest Average</div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ---- Compare panel ---- -->
+    <div id="dash-compare" class="dash-panel dash-panel-full">
+      <div class="card dash-hero-card">
+        <h3><span class="dot"></span>Compare With a Previous Month</h3>
+        <p class="section-sub" style="margin-bottom:16px;">Pick any earlier recorded month to see how the class average has moved since then.</p>
+        <div class="dash-compare-toolbar">
+          <div class="dash-stat-icon" style="--tile-accent:var(--amber); --tile-accent-soft:var(--amber-soft);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
+          <div class="select-wrap">
+            <label for="dashCompareSelect">Compare this month</label>
+            <select id="dashCompareSelect"><option value="">No other month recorded yet</option></select>
+          </div>
+        </div>
+
+        <div class="dash-compare-rings">
+          <div>
+            <div class="ring-wrap dash-ring-glow">
+              <canvas id="dashRingCompare" height="0" style="display: block; box-sizing: border-box; height: 0px; width: 0px;" width="0"></canvas>
+              <div class="ring-center">
+                <div class="ring-value" id="dashRingCompareValue">—</div>
+                <div class="ring-label" id="dashRingCompareLabel">Previous Month</div>
+              </div>
+            </div>
+          </div>
+          <div class="dash-vs-badge">VS</div>
+          <div>
+            <div class="ring-wrap dash-ring-glow">
+              <canvas id="dashRingCurrent" height="0" style="display: block; box-sizing: border-box; height: 0px; width: 0px;" width="0"></canvas>
+              <div class="ring-center">
+                <div class="ring-value" id="dashRingCurrentValue">—</div>
+                <div class="ring-label" id="dashRingCurrentLabel">Current Month</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top:16px;">
+          <span class="dash-trend-pill trend-empty" id="dashCompareChangePill">Pick a month above to compare class averages.</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ---- Course Progress panel ---- -->
+    <div id="dash-courseprogress" class="dash-panel dash-panel-full">
+      <div class="card">
+        <h3><span class="dot"></span>Course Progress — By Subject</h3>
+        <p class="section-sub" style="margin-bottom:16px;">Pulled live from the <b>Course Progress</b> tab (which itself auto-calculates from Course Breakup, unless a subject's numbers were typed in manually there) — every subject shown at once, each with its own ring chart.</p>
+
+        <div id="dashCourseEmptyState" class="empty-state" style="display:none;">
+          <div class="big">No subjects yet</div>
+          Add subjects (Students tab CSV import) or chapters (Course Breakup tab) to see progress here.
+        </div>
+
+        <div id="dashCourseGrid" class="mini-ring-grid"></div>
+      </div>
+    </div>
+
+    <!-- ---- Fix Deposit panel ---- -->
+    <div id="dash-fixdeposit" class="dash-panel dash-panel-pair">
+      <div class="card">
+        <h3><span class="dot"></span>Fix Deposit</h3>
+        <p class="section-sub" style="margin-bottom:16px;">Per-student status pulled live from the <b>Deposit Record</b> tab — Fix Deposit is a one-time fee, so any student ticked as paid there shows a full bar here (at the amount selected below); unticked students show empty.</p>
+
+        <div class="toolbar" style="margin-bottom:16px;">
+          <div style="min-width:200px;">
+            <label for="fixDepositTotalSelect">Total Fix Deposit (per student)</label>
+            <select id="fixDepositTotalSelect">
+              <option value="">— Select total —</option>
+              <option value="500">Rs. 500</option>
+              <option value="1000">Rs. 1000</option>
+              <option value="1500">Rs. 1500</option>
+              <option value="2000">Rs. 2000</option>
+              <option value="2500">Rs. 2500</option>
+              <option value="3000">Rs. 3000</option>
+              <option value="custom">Custom…</option>
+            </select>
+          </div>
+          <div id="fixDepositTotalCustomWrap" style="min-width:160px;display:none;">
+            <label for="fixDepositTotalCustomInput">Custom Amount</label>
+            <input type="number" id="fixDepositTotalCustomInput" placeholder="e.g. 1800" min="0">
+          </div>
+        </div>
+
+        <div id="dashFixDepositEmpty" class="empty-state" style="display:none;">
+          <div class="big">No deposit records yet</div>
+          Add rows in the Deposit Record tab (tick the Fix Deposit box) to see each student's status here.
+        </div>
+
+        <div id="dashFixDepositList" class="fee-track-list"></div>
+      </div>
+    </div>
+
+    <!-- ---- Notes Fees panel ---- -->
+    <div id="dash-notesfees" class="dash-panel dash-panel-pair">
+      <div class="card">
+        <h3><span class="dot"></span>Notes Fees</h3>
+        <p class="section-sub" style="margin-bottom:16px;">Per-student amount pulled live from the <b>Deposit Record</b> tab — set the total Notes Fees amount below and each bar fills relative to it (how much of the full fee that student has paid so far).</p>
+
+        <div class="toolbar" style="margin-bottom:16px;">
+          <div style="min-width:200px;">
+            <label for="notesFeesTotalSelect">Total Notes Fees (per student)</label>
+            <select id="notesFeesTotalSelect">
+              <option value="">— Select total —</option>
+              <option value="500">Rs. 500</option>
+              <option value="1000">Rs. 1000</option>
+              <option value="1500">Rs. 1500</option>
+              <option value="2000">Rs. 2000</option>
+              <option value="2500">Rs. 2500</option>
+              <option value="3000">Rs. 3000</option>
+              <option value="custom">Custom…</option>
+            </select>
+          </div>
+          <div id="notesFeesTotalCustomWrap" style="min-width:160px;display:none;">
+            <label for="notesFeesTotalCustomInput">Custom Amount</label>
+            <input type="number" id="notesFeesTotalCustomInput" placeholder="e.g. 1800" min="0">
+          </div>
+        </div>
+
+        <div id="dashNotesFeesEmpty" class="empty-state" style="display:none;">
+          <div class="big">No deposit records yet</div>
+          Add Notes Fees amounts in the Deposit Record tab to see each student's total here.
+        </div>
+
+        <div id="dashNotesFeesList" class="fee-track-list"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
      SECTION 1: STUDENTS — add/edit student profile + photo
      ============================================================ -->
-<div id="tab-students" class="section active">
+<div id="tab-students" class="section">
   <div class="section-title">Student Profiles</div>
   <p class="section-sub">Add a new student, upload a picture, and view the list.</p>
 
@@ -3411,6 +4033,10 @@ let STATE = {
   fundSeeded: false, // one-time flag: has the ledger already been pre-filled with 50 blank rows to match the original spreadsheet?
   deposit: [], // {id, date, day, name, roll, fixDeposit, notesFees, total} — one row per deposit/notes-fee entry (Administrator / Campus Incharge)
   depositSeeded: false, // one-time flag: has the deposit record already been pre-filled to match the original spreadsheet?
+  depositDuplicatesCollapsed: false, // one-time flag: have old duplicate blank deposit rows (from an earlier seed) been merged down to 1 per known student?
+  demoMarksSeeded: false, // one-time flag: has sample marks/notes-fees data already been filled in for the 7 known students?
+  notesFeesTotal: '', // string/number — the selected "Total Notes Fees per student" amount used to fill the Notes Fees bars on the Dashboard
+  fixDepositTotal: '', // string/number — the selected "Total Fix Deposit per student" amount used to fill the Fix Deposit bars on the Dashboard (defaults to Rs. 500 if not set)
   classRatings: [], // {id, date, teacher, cls, subject, notes, ratings: {studentId: {performance, punctuality, behaviour: 'excellent'|'good'|'average'|'poor'|null}}} — one row per class session (Daily Class Rating tab); each session covers one teacher/class/subject on a date, with each student in that class rated individually on 3 dimensions
   classRatingsMigratedV3: false, // one-time flag: have older class-rating formats (pre student-level ratings) been cleared out?
   classRatingsMigratedV4: false, // one-time flag: have single-value per-student ratings been upgraded to the 3-dimension (Performance/Punctuality/Behaviour) shape?
@@ -3478,6 +4104,10 @@ function applyParsedState(parsed){
   STATE.fundSeeded = parsed.fundSeeded || false;
   STATE.deposit = parsed.deposit || [];
   STATE.depositSeeded = parsed.depositSeeded || false;
+  STATE.depositDuplicatesCollapsed = parsed.depositDuplicatesCollapsed || false;
+  STATE.demoMarksSeeded = parsed.demoMarksSeeded || false;
+  STATE.notesFeesTotal = parsed.notesFeesTotal || '';
+  STATE.fixDepositTotal = parsed.fixDepositTotal || '';
   STATE.classRatings = parsed.classRatings || [];
   STATE.classRatingsMigratedV3 = parsed.classRatingsMigratedV3 || false;
   STATE.classRatingsMigratedV4 = parsed.classRatingsMigratedV4 || false;
@@ -3673,13 +4303,109 @@ function seedDefaultDeposit(){
   if(!STATE.deposit || STATE.deposit.length === 0){
     STATE.deposit = [];
     DEFAULT_DEPOSIT_STUDENTS.forEach(stu => {
-      for(let i = 0; i < 5; i++){
-        STATE.deposit.push({id: uid('dep'), date:'', day:'', name:stu.name, roll:stu.roll, fixDeposit: i === 0, notesFees:'', total:''});
-      }
+      // One row per student (not several blank duplicates) — Fix Deposit
+      // starts marked paid, matching how these 7 students' records began.
+      STATE.deposit.push({id: uid('dep'), date:'', day:'', name:stu.name, roll:stu.roll, fixDeposit:true, notesFees:'', total:''});
     });
   }
   STATE.depositSeeded = true;
   saveState();
+}
+
+// One-time cleanup: an earlier version of seedDefaultDeposit() created 5
+// blank duplicate rows per known student instead of 1. This merges any
+// leftover duplicates (from a database that already ran that old seed)
+// back down to a single row per student, keeping whatever real data
+// (Fix Deposit tick, Notes Fees amount, date/day) any of the duplicates
+// had — never touches rows for students outside the known 7, and never
+// runs more than once.
+function collapseDuplicateDefaultDepositRows(){
+  if(STATE.depositDuplicatesCollapsed) return;
+  if(!STATE.deposit) STATE.deposit = [];
+  const knownRolls = new Set(DEFAULT_DEPOSIT_STUDENTS.map(s => s.roll));
+  let changed = false;
+  knownRolls.forEach(roll => {
+    const idxs = [];
+    STATE.deposit.forEach((r, i) => { if(r.roll === roll) idxs.push(i); });
+    if(idxs.length > 1){
+      const rows = idxs.map(i => STATE.deposit[i]);
+      const dateRow = rows.find(r => r.date);
+      const dayRow = rows.find(r => r.day);
+      const notesRow = rows.find(r => r.notesFees !== '' && r.notesFees != null);
+      const totalRow = rows.find(r => r.total !== '' && r.total != null);
+      const merged = {
+        id: rows[0].id,
+        date: dateRow ? dateRow.date : '',
+        day: dayRow ? dayRow.day : '',
+        name: rows[0].name,
+        roll: rows[0].roll,
+        fixDeposit: rows.some(r => r.fixDeposit),
+        notesFees: notesRow ? notesRow.notesFees : '',
+        total: totalRow ? totalRow.total : ''
+      };
+      STATE.deposit[idxs[0]] = merged;
+      for(let k = idxs.length - 1; k >= 1; k--){ STATE.deposit.splice(idxs[k], 1); }
+      changed = true;
+    }
+  });
+  STATE.depositDuplicatesCollapsed = true;
+  if(changed) saveState();
+}
+
+// One-time demo data: fills in sample current/previous-month marks (so the
+// Dashboard's Students & Overall Average rings have something to show) and
+// a sample Notes Fees amount for the same 7 known students above — but only
+// for whichever of them already exist in STATE.students (added by hand or
+// CSV import) and only where a real value isn't already there. Never
+// invents new students and never overwrites anything real that was already
+// entered, so it's safe to leave in permanently.
+function seedDemoMarksForKnownStudents(){
+  if(STATE.demoMarksSeeded) return;
+  let changed = false;
+
+  // Make sure these 7 known students exist in the roster (matched by roll)
+  // — creates any that are missing, never touches ones already there.
+  DEFAULT_DEPOSIT_STUDENTS.forEach(def => {
+    const exists = STATE.students.some(stu => stu.roll === def.roll);
+    if(!exists){
+      STATE.students.push({id: uid('stu'), name: def.name, roll: def.roll, cls: 'VII', photo: ''});
+      changed = true;
+    }
+  });
+
+  const knownRolls = new Set(DEFAULT_DEPOSIT_STUDENTS.map(s => s.roll));
+  const matchedStudents = STATE.students.filter(stu => knownRolls.has(stu.roll));
+  if(matchedStudents.length && STATE.subjects.length){
+    const months = [shiftMonthKey(currentCalendarMonth(), -1), currentCalendarMonth()];
+    matchedStudents.forEach(stu => {
+      STATE.subjects.forEach(sub => {
+        months.forEach(month => {
+          const already = STATE.marksHistory.some(h => h.studentId === stu.id && h.subjectId === sub.id && h.month === month);
+          if(!already){
+            const value = Math.floor(55 + Math.random() * 40); // sample score, 55–95 out of 100
+            STATE.marksHistory.push({id: uid('mh'), studentId: stu.id, subjectId: sub.id, month, value});
+            changed = true;
+          }
+        });
+      });
+    });
+  }
+
+  // Sample Notes Fees amount — only fills the first (fixDeposit) row per
+  // student, and only if it's still blank.
+  const notesFeesSamples = {
+    'PEC-07-01': 1500, 'PEC-07-02': 1200, 'PEC-07-03': 1800,
+    'PEC-07-04': 900,  'PEC-07-05': 1500, 'PEC-07-06': 2000, 'PEC-07-07': 1100
+  };
+  STATE.deposit.forEach(row => {
+    if(row.fixDeposit && (row.notesFees === '' || row.notesFees === null || row.notesFees === undefined) && notesFeesSamples[row.roll] !== undefined){
+      row.notesFees = notesFeesSamples[row.roll];
+      changed = true;
+    }
+  });
+
+  STATE.demoMarksSeeded = true;
+  if(changed) saveState();
 }
 
 // The 7 core subjects with their Junior/Senior Teacher names. Runs once,
@@ -3896,7 +4622,7 @@ let adminUnlocked = true;
 const ROLE_TABS = {
   admin:       ['tab-attendance','tab-classrating','tab-timetable','tab-students-data','tab-mom','tab-awardlist','tab-fund','tab-deposit'],
   academia:    ['tab-courseprogress','tab-timetable','tab-coursebreakup','tab-mom','tab-awardlist'],
-  incharge:    ['tab-students','tab-subjects','tab-report','tab-ranking','tab-overview','tab-courseprogress','tab-attendance','tab-classrating','tab-timetable','tab-papertimetable','tab-coursebreakup','tab-students-data','tab-mom','tab-awardlist','tab-invigilation','tab-fund','tab-deposit'],
+  incharge:    ['tab-dashboard','tab-students','tab-subjects','tab-report','tab-ranking','tab-overview','tab-courseprogress','tab-attendance','tab-classrating','tab-timetable','tab-papertimetable','tab-coursebreakup','tab-students-data','tab-mom','tab-awardlist','tab-invigilation','tab-fund','tab-deposit'],
   teachers:    ['tab-timetable','tab-classrating','tab-mom','tab-awardlist'],
   examination: ['tab-subjects','tab-timetable','tab-papertimetable','tab-mom','tab-awardlist','tab-invigilation']
 };
@@ -4116,6 +4842,7 @@ function activateTab(tabId, opts){
   }
 
   // Refresh the relevant view whenever a tab is opened
+  if(tabId === 'tab-dashboard'){ refreshDashboardDropdown(); renderDashStudentProgress(); renderDashOverallAvg(); renderDashboard(); renderDashCompare(); renderDashCourseProgress(); renderDashFixDeposit(); renderDashNotesFees(); }
   if(tabId === 'tab-subjects'){ refreshMarksDropdowns(); renderMarksTable(); }
   if(tabId === 'tab-courseprogress'){ renderCourseProgress(); }
   if(tabId === 'tab-attendance'){ renderAttendanceMarking(); renderAttendanceSummary(); renderMonthlyAttendance(); }
@@ -7602,6 +8329,640 @@ function renderOvCompare(){
 
 document.getElementById('ovCompareSelect').addEventListener('change', renderOvCompare);
 
+/* ============================================================
+   SECTION 0: DASHBOARD — whole-class average ring chart(s) +
+   month-vs-month comparison. Reuses Monthly Overview's helpers
+   (getMonthsWithData / getCurrentMonthKey / getStudentMonthPercent /
+   monthLabel), which are defined above.
+   ============================================================ */
+let dashRingInstance = null, dashRingCompareInstance = null, dashRingCurrentInstance = null;
+let dashStuRingInstances = {}; // {studentId: Chart instance} — per-student mini rings on the Students panel
+
+// Class average % for a given month = the average of each student's own
+// month percentage (every student counts equally, regardless of how many
+// subjects they have marks for).
+function getClassAveragePercent(month){
+  if(!month) return null;
+  const pcts = STATE.students
+    .map(stu=>getStudentMonthPercent(stu.id, month))
+    .filter(p=>p!=null);
+  if(pcts.length===0) return null;
+  const sum = pcts.reduce((a,b)=>a+b, 0);
+  return { avg: sum/pcts.length, count: pcts.length, pcts };
+}
+
+function themeVar(name, fallback){
+  const v = getComputedStyle(document.documentElement).getPropertyValue(name);
+  return v && v.trim() ? v.trim() : fallback;
+}
+
+// Draws a simple ring (doughnut) chart into `canvasId` showing `pct`
+// filled in `color`, with the remainder in the theme's line colour. The
+// numeric label itself lives in the HTML .ring-center overlay, not on
+// the canvas — this just draws the ring.
+function drawRingChart(canvasId, pct, color){
+  const canvas = document.getElementById(canvasId);
+  if(!canvas || typeof Chart==='undefined') return null;
+  const ctx = canvas.getContext('2d');
+  const safePct = pct==null ? 0 : Math.max(0, Math.min(100, pct));
+  return new Chart(ctx, {
+    type:'doughnut',
+    data:{
+      datasets:[{
+        data:[safePct, 100-safePct],
+        backgroundColor:[color, themeVar('--line', '#E4DFD2')],
+        borderWidth:0
+      }]
+    },
+    options:{
+      responsive:true,
+      maintainAspectRatio:false,
+      cutout:'76%',
+      plugins:{ legend:{ display:false }, tooltip:{ enabled:false } },
+      animation:{ duration:600 }
+    }
+  });
+}
+
+function refreshDashboardDropdown(){
+  const sel = document.getElementById('dashCompareSelect');
+  if(!sel) return;
+  const months = getMonthsWithData();
+  const currentMonth = getCurrentMonthKey();
+  const compareOptions = months.filter(m=>m!==currentMonth);
+  const prevVal = sel.value;
+  sel.innerHTML = compareOptions.length
+    ? compareOptions.map(m=>`<option value="${m}">${monthLabel(m)}</option>`).join('')
+    : '<option value="">No other month recorded yet</option>';
+  if(compareOptions.includes(prevVal)) sel.value = prevVal;
+}
+
+/* ------------------------------------------------------------
+   Dashboard — Students panel: every student listed with a small
+   ring chart of their own current-month percentage, the number
+   sitting inside the ring itself (mirrors the class-average ring
+   above, just one per student and smaller).
+   ------------------------------------------------------------ */
+function ringColorForPct(pct){
+  if(pct >= 75) return themeVar('--chalk-green', '#2F5233');
+  if(pct >= 50) return themeVar('--amber', '#E8A33D');
+  return themeVar('--coral', '#C1443B');
+}
+
+function renderDashStudentProgress(){
+  const emptyState = document.getElementById('dashStuEmptyState');
+  const grid = document.getElementById('dashStuGrid');
+  if(!grid) return;
+
+  const currentMonth = getCurrentMonthKey();
+  const monthLbl = document.getElementById('dashStuMonthLabel');
+  if(monthLbl) monthLbl.textContent = currentMonth ? monthLabel(currentMonth) : 'Current Month';
+
+  // Destroy any previous chart instances before wiping the grid's HTML.
+  Object.values(dashStuRingInstances).forEach(ch => { try{ ch && ch.destroy(); }catch(e){} });
+  dashStuRingInstances = {};
+
+  if(!currentMonth || STATE.students.length === 0){
+    if(emptyState) emptyState.style.display = 'block';
+    grid.innerHTML = '';
+    return;
+  }
+
+  const rows = STATE.students.map(stu => ({ stu, pct: getStudentMonthPercent(stu.id, currentMonth) }));
+  const anyData = rows.some(r => r.pct != null);
+  if(!anyData){
+    if(emptyState) emptyState.style.display = 'block';
+    grid.innerHTML = '';
+    return;
+  }
+  if(emptyState) emptyState.style.display = 'none';
+
+  let html = '';
+  rows.forEach(r => {
+    const canvasId = 'dashStuRing_' + r.stu.id;
+    const tierClass = r.pct == null ? 'tier-none' : (r.pct >= 75 ? 'tier-high' : (r.pct >= 50 ? 'tier-mid' : 'tier-low'));
+    html += `<div class="mini-ring-card ${tierClass}">
+      <div class="mini-ring-wrap${r.pct == null ? ' mini-ring-wrap--empty' : ''}">
+        <canvas id="${canvasId}" height="0" width="0"></canvas>
+        <div class="mini-ring-center">
+          <div class="mini-ring-value">${r.pct != null ? Math.round(r.pct) + '%' : '—'}</div>
+        </div>
+      </div>
+      <div class="mini-ring-name" title="${escapeHtml(r.stu.name || '')}">${escapeHtml(r.stu.name || '(No name)')}</div>
+      ${r.stu.roll ? `<div class="mini-ring-roll">Roll: ${escapeHtml(r.stu.roll)}</div>` : ''}
+    </div>`;
+  });
+  grid.innerHTML = html;
+
+  rows.forEach(r => {
+    const canvasId = 'dashStuRing_' + r.stu.id;
+    try{
+      if(r.pct != null){
+        const inst = drawRingChart(canvasId, r.pct, ringColorForPct(r.pct));
+        if(inst) dashStuRingInstances[r.stu.id] = inst;
+      }
+    }catch(err){
+      console.error('Dashboard student ring chart error:', err);
+    }
+  });
+}
+
+/* ------------------------------------------------------------
+   Dashboard — Overall Average panel: every student's average
+   percentage across EVERY month recorded so far in marksHistory
+   (not just the current month) — the average of that student's
+   own monthly percentages, one bar per student, colour-coded by
+   how well they're doing overall.
+   ------------------------------------------------------------ */
+function getStudentOverallAveragePercent(studentId){
+  const months = getMonthsWithData();
+  const pcts = months
+    .map(m => getStudentMonthPercent(studentId, m))
+    .filter(p => p != null);
+  if(pcts.length === 0) return null;
+  const sum = pcts.reduce((a,b)=>a+b, 0);
+  return { avg: sum / pcts.length, monthsCounted: pcts.length };
+}
+
+function barColorClassForPct(pct){
+  if(pct >= 75) return '';       // default fill is already the green loading-bar style
+  if(pct >= 50) return 'amber';
+  return 'coral';
+}
+
+function renderDashOverallAvg(){
+  const emptyState = document.getElementById('dashOverallAvgEmpty');
+  const listWrap = document.getElementById('dashOverallAvgList');
+  if(!listWrap) return;
+
+  const totalMonths = getMonthsWithData().length;
+  if(totalMonths === 0 || STATE.students.length === 0){
+    if(emptyState) emptyState.style.display = 'block';
+    listWrap.innerHTML = '';
+    return;
+  }
+
+  const rows = STATE.students.map(stu => ({ stu, result: getStudentOverallAveragePercent(stu.id) }));
+  const anyData = rows.some(r => r.result != null);
+  if(!anyData){
+    if(emptyState) emptyState.style.display = 'block';
+    listWrap.innerHTML = '';
+    return;
+  }
+  if(emptyState) emptyState.style.display = 'none';
+
+  let html = '';
+  rows.forEach(r => {
+    const s = r.stu;
+    const pct = r.result ? Math.round(r.result.avg * 10) / 10 : 0;
+    const monthsCounted = r.result ? r.result.monthsCounted : 0;
+    const colorClass = r.result ? barColorClassForPct(r.result.avg) : 'zero';
+    const rowClass = !r.result ? 'row-coral' : (colorClass === 'amber' ? 'row-amber' : (colorClass === 'coral' ? 'row-coral' : 'row-paid'));
+    const pctDisplay = r.result ? pct.toFixed(1) + '%' : '—';
+    html += `<div class="fee-track-row ${rowClass}">
+      <div>
+        <div class="fee-track-name">${escapeHtml(s.name || '(No name)')}</div>
+        ${s.roll ? `<div class="fee-track-roll">Roll: ${escapeHtml(s.roll)}</div>` : ''}
+      </div>
+      <div class="fee-track-bar-wrap">
+        <div class="fee-track-bar-track">
+          <div class="fee-track-bar-fill${colorClass ? ' '+colorClass : ''}" style="width:${r.result ? pct : 0}%;"></div>
+        </div>
+        <div class="fee-track-bar-label">
+          <span>Overall Average</span>
+          <span>${monthsCounted} of ${totalMonths} month${totalMonths===1?'':'s'} recorded</span>
+        </div>
+      </div>
+      <div class="fee-track-notes">${pctDisplay}<span class="lbl">Overall Avg</span></div>
+    </div>`;
+  });
+
+  listWrap.innerHTML = html;
+}
+
+function renderDashboard(){
+  const emptyState = document.getElementById('dashEmptyState');
+  const content = document.getElementById('dashOverviewCard');
+  const currentMonth = getCurrentMonthKey();
+  const result = getClassAveragePercent(currentMonth);
+
+  if(!currentMonth || !result){
+    emptyState.style.display = 'block';
+    content.style.display = 'none';
+    return;
+  }
+  emptyState.style.display = 'none';
+  content.style.display = 'block';
+
+  document.getElementById('dashMonthLabel').textContent = monthLabel(currentMonth);
+  document.getElementById('dashRingValue').textContent = result.avg.toFixed(1) + '%';
+  document.getElementById('dashStatStudents').textContent = result.count;
+  document.getElementById('dashStatAvg').textContent = result.avg.toFixed(1) + '%';
+  document.getElementById('dashStatHigh').textContent = Math.max(...result.pcts).toFixed(1) + '%';
+  document.getElementById('dashStatLow').textContent = Math.min(...result.pcts).toFixed(1) + '%';
+
+  try{
+    if(dashRingInstance) dashRingInstance.destroy();
+    dashRingInstance = drawRingChart('dashRingChart', result.avg, themeVar('--chalk-green', '#2F5233'));
+    if(!dashRingInstance) showChartFallback('dashRingChart', 'Chart needs internet access to load (Chart.js library). The number above is accurate.');
+    else clearChartFallback('dashRingChart');
+  }catch(err){
+    console.error('Dashboard ring chart error:', err);
+    showChartFallback('dashRingChart', 'Chart could not be drawn, but the number above is accurate.');
+  }
+
+  renderDashCompare();
+}
+
+function renderDashCompare(){
+  const currentMonth = getCurrentMonthKey();
+  const sel = document.getElementById('dashCompareSelect');
+  const compareMonth = sel ? sel.value : '';
+
+  document.getElementById('dashRingCurrentLabel').textContent = currentMonth ? monthLabel(currentMonth) + ' (Current)' : 'Current Month';
+  document.getElementById('dashRingCompareLabel').textContent = compareMonth ? monthLabel(compareMonth) : 'Previous Month';
+
+  const curResult = currentMonth ? getClassAveragePercent(currentMonth) : null;
+  const cmpResult = compareMonth ? getClassAveragePercent(compareMonth) : null;
+
+  document.getElementById('dashRingCurrentValue').textContent = curResult ? curResult.avg.toFixed(1) + '%' : '—';
+  document.getElementById('dashRingCompareValue').textContent = cmpResult ? cmpResult.avg.toFixed(1) + '%' : '—';
+
+  const pill = document.getElementById('dashCompareChangePill');
+  pill.classList.remove('trend-up','trend-down','trend-flat','trend-empty');
+  if(!currentMonth || !compareMonth || !curResult || !cmpResult){
+    pill.textContent = 'Pick a month above to compare class averages.';
+    pill.classList.add('trend-empty');
+  }else{
+    const diff = curResult.avg - cmpResult.avg;
+    if(diff>0.05){ pill.textContent = '▲ Class average is up ' + diff.toFixed(1) + '% vs ' + monthLabel(compareMonth); pill.classList.add('trend-up'); }
+    else if(diff<-0.05){ pill.textContent = '▼ Class average is down ' + Math.abs(diff).toFixed(1) + '% vs ' + monthLabel(compareMonth); pill.classList.add('trend-down'); }
+    else{ pill.textContent = 'No real change vs ' + monthLabel(compareMonth); pill.classList.add('trend-flat'); }
+  }
+
+  try{
+    if(dashRingCurrentInstance) dashRingCurrentInstance.destroy();
+    dashRingCurrentInstance = drawRingChart('dashRingCurrent', curResult ? curResult.avg : null, themeVar('--chalk-green', '#2F5233'));
+    if(!dashRingCurrentInstance) showChartFallback('dashRingCurrent', 'Chart needs internet access to load (Chart.js library). The number above is accurate.');
+    else clearChartFallback('dashRingCurrent');
+  }catch(err){
+    console.error('Dashboard current-month ring chart error:', err);
+  }
+
+  try{
+    if(dashRingCompareInstance) dashRingCompareInstance.destroy();
+    dashRingCompareInstance = drawRingChart('dashRingCompare', cmpResult ? cmpResult.avg : null, themeVar('--amber', '#E8A33D'));
+    if(!dashRingCompareInstance) showChartFallback('dashRingCompare', 'Chart needs internet access to load (Chart.js library). The number above is accurate.');
+    else clearChartFallback('dashRingCompare');
+  }catch(err){
+    console.error('Dashboard compare-month ring chart error:', err);
+  }
+}
+
+const dashCompareSelectEl = document.getElementById('dashCompareSelect');
+if(dashCompareSelectEl) dashCompareSelectEl.addEventListener('change', renderDashCompare);
+
+/* ---------- Dashboard: Course Progress ring (per selected subject) ----------
+   Pulls straight from the same STATE.courseProgress / Course Breakup data and
+   auto/manual logic used by the Course Progress tab (getCourseProgressEntry,
+   matchBreakupIdForSubject, getChapterStatsFromBreakup, countChapterItems,
+   getCourseProgressDisplaySubjects — all defined above in the Course
+   Progress section), so it always matches that tab exactly. */
+let dashCourseRingInstance = null;
+
+function getSubjectCourseProgressStats(sub){
+  const entry = getCourseProgressEntry(sub.id);
+  const breakupId = matchBreakupIdForSubject(sub.name);
+  const autoStats = breakupId ? getChapterStatsFromBreakup(breakupId) : null;
+  const hasManualOverride = (entry.completed||'') !== '' || (entry.inprogress||'') !== '' || entry.total !== '';
+  const isAuto = !!autoStats && !hasManualOverride;
+
+  let total, completedCount, inprogressCount, remaining, completedPct, inprogressPct, duePct;
+  if(isAuto){
+    total = autoStats.totalChapters;
+    completedCount = autoStats.completedNames.length;
+    inprogressCount = autoStats.inprogressNames.length;
+    remaining = autoStats.remainingCount;
+    completedPct = autoStats.completedPct;
+    inprogressPct = autoStats.inprogressPct;
+    duePct = autoStats.duePct;
+  }else{
+    total = parseInt(entry.total, 10) || 0;
+    completedCount = countChapterItems(entry.completed);
+    inprogressCount = countChapterItems(entry.inprogress);
+    remaining = total>0 ? Math.max(0, total - completedCount - inprogressCount) : 0;
+    completedPct = total>0 ? (completedCount/total*100) : 0;
+    inprogressPct = total>0 ? (inprogressCount/total*100) : 0;
+    duePct = total>0 ? (remaining/total*100) : 0;
+  }
+  return { total, completedCount, inprogressCount, remaining, completedPct, inprogressPct, duePct };
+}
+
+// Three-colour ring (Completed / In Progress / Remaining), with a bottom
+// legend — unlike drawRingChart's plain two-colour ring, since a subject's
+// progress has three states worth showing at a glance.
+function drawTriRingChart(canvasId, completedPct, inprogressPct, duePct){
+  const canvas = document.getElementById(canvasId);
+  if(!canvas || typeof Chart==='undefined') return null;
+  const ctx = canvas.getContext('2d');
+  return new Chart(ctx, {
+    type:'doughnut',
+    data:{
+      labels:['Completed','In Progress','Remaining'],
+      datasets:[{
+        data:[completedPct, inprogressPct, duePct],
+        backgroundColor:[themeVar('--chalk-green','#2F5233'), themeVar('--amber','#E8A33D'), themeVar('--coral','#C1443B')],
+        borderColor: themeVar('--paper-card','#FFFFFF'),
+        borderWidth:2
+      }]
+    },
+    options:{
+      responsive:true,
+      maintainAspectRatio:false,
+      cutout:'68%',
+      plugins:{
+        legend:{ position:'bottom', labels:{ font:{ family:'Inter' }, boxWidth:12 } },
+        tooltip:{ callbacks:{ label:(ctx)=> ctx.label + ': ' + ctx.parsed.toFixed(1) + '%' } }
+      },
+      animation:{ duration:600 }
+    }
+  });
+}
+
+let dashCourseRingInstances = {}; // {subjectId: Chart instance} — per-subject mini rings on the Course Progress panel
+
+// Every subject shown at once, each with its own small ring chart (no
+// subject picker) — mirrors the Students panel's per-student mini rings.
+function renderDashCourseProgress(){
+  const emptyState = document.getElementById('dashCourseEmptyState');
+  const grid = document.getElementById('dashCourseGrid');
+  if(!grid) return;
+
+  const subjects = getCourseProgressDisplaySubjects();
+
+  // Destroy any previous chart instances before wiping the grid's HTML.
+  Object.values(dashCourseRingInstances).forEach(ch => { try{ ch && ch.destroy(); }catch(e){} });
+  dashCourseRingInstances = {};
+
+  if(subjects.length===0){
+    if(emptyState) emptyState.style.display = 'block';
+    grid.innerHTML = '';
+    return;
+  }
+  if(emptyState) emptyState.style.display = 'none';
+
+  const rows = subjects.map(sub => ({ sub, stats: getSubjectCourseProgressStats(sub) }));
+
+  let html = '';
+  rows.forEach(r => {
+    const canvasId = 'dashCourseRing_' + r.sub.id;
+    const hasData = r.stats.total > 0;
+    const tierClass = !hasData ? 'tier-none' : (r.stats.completedPct >= 75 ? 'tier-high' : (r.stats.completedPct >= 50 ? 'tier-mid' : 'tier-low'));
+    html += `<div class="mini-ring-card ${tierClass}">
+      <div class="mini-ring-wrap${!hasData ? ' mini-ring-wrap--empty' : ''}">
+        <canvas id="${canvasId}" height="0" width="0"></canvas>
+        <div class="mini-ring-center">
+          <div class="mini-ring-value">${hasData ? Math.round(r.stats.completedPct) + '%' : '—'}</div>
+        </div>
+      </div>
+      <div class="mini-ring-name" title="${escapeHtml(r.sub.name || '')}">${escapeHtml(r.sub.name || '(No name)')}</div>
+      ${hasData ? `<div class="mini-ring-roll">${r.stats.completedCount}/${r.stats.total} chapters</div>` : ''}
+    </div>`;
+  });
+  grid.innerHTML = html;
+
+  rows.forEach(r => {
+    const canvasId = 'dashCourseRing_' + r.sub.id;
+    try{
+      if(r.stats.total > 0){
+        const inst = drawRingChart(canvasId, r.stats.completedPct, ringColorForPct(r.stats.completedPct));
+        if(inst) dashCourseRingInstances[r.sub.id] = inst;
+      }
+    }catch(err){
+      console.error('Dashboard course-progress ring chart error:', err);
+    }
+  });
+}
+
+/* ------------------------------------------------------------
+   Dashboard — Fix Deposit panel: one row per student, pulled
+   live from STATE.deposit (Deposit Record tab). Fix Deposit is a
+   one-time fee represented by a checkbox per row there — if ANY
+   of a student's recorded rows has it ticked, their bar shows
+   FULL (paid) at the selected "Total Fix Deposit per student"
+   amount (STATE.fixDepositTotal); otherwise it shows empty.
+   Falls back to Rs. 500 if no total has been selected yet.
+   ------------------------------------------------------------ */
+function getFixDepositAmount(){
+  const total = parseFloat(STATE.fixDepositTotal);
+  return (!isNaN(total) && total > 0) ? total : 500;
+}
+
+function groupDepositRowsByStudent(){
+  const rows = STATE.deposit || [];
+  const byStudent = {};
+  const order = [];
+  rows.forEach(row => {
+    const name = (row.name || '').trim();
+    const roll = (row.roll || '').trim();
+    if(!name && !roll) return; // skip fully blank rows
+    const key = roll || name;
+    if(!byStudent[key]){
+      byStudent[key] = { name: name || '(No name)', roll, fixDepositPaid: false, notesSum: 0 };
+      order.push(key);
+    }
+    const entry = byStudent[key];
+    if(!entry.name && name) entry.name = name;
+    if(!entry.roll && roll) entry.roll = roll;
+    if(row.fixDeposit) entry.fixDepositPaid = true;
+    const notesVal = parseFloat(String(row.notesFees || '').replace(/[^0-9.\-]/g, ''));
+    if(!isNaN(notesVal)) entry.notesSum += notesVal;
+  });
+  return { byStudent, order };
+}
+
+function renderDashFixDeposit(){
+  const emptyState = document.getElementById('dashFixDepositEmpty');
+  const listWrap = document.getElementById('dashFixDepositList');
+  if(!listWrap) return;
+
+  const { byStudent, order } = groupDepositRowsByStudent();
+  if(order.length === 0){
+    if(emptyState) emptyState.style.display = 'block';
+    listWrap.innerHTML = '';
+    return;
+  }
+  if(emptyState) emptyState.style.display = 'none';
+
+  const fixDepositAmount = getFixDepositAmount();
+
+  let html = '';
+  order.forEach(key => {
+    const s = byStudent[key];
+    const pct = s.fixDepositPaid ? 100 : 0;
+    html += `<div class="fee-track-row ${s.fixDepositPaid ? 'row-paid' : 'row-zero'}">
+      <div>
+        <div class="fee-track-name">${escapeHtml(s.name)}</div>
+        ${s.roll ? `<div class="fee-track-roll">Roll: ${escapeHtml(s.roll)}</div>` : ''}
+      </div>
+      <div class="fee-track-bar-wrap">
+        <div class="fee-track-bar-track">
+          <div class="fee-track-bar-fill${pct === 0 ? ' zero' : ''}" style="width:${pct}%;"></div>
+        </div>
+        <div class="fee-track-bar-label">
+          <span>Fix Deposit</span>
+          <span>${s.fixDepositPaid ? `Rs. ${fixDepositAmount.toLocaleString()} — Paid` : 'Not Paid'}</span>
+        </div>
+      </div>
+      <div class="fee-track-notes">${s.fixDepositPaid ? `Rs. ${fixDepositAmount.toLocaleString()}` : '—'}<span class="lbl">Fix Deposit</span></div>
+    </div>`;
+  });
+
+  listWrap.innerHTML = html;
+}
+
+/* ---- Total Fix Deposit selector — dropdown (with a Custom option) ---- */
+function initFixDepositTotalControls(){
+  const sel = document.getElementById('fixDepositTotalSelect');
+  const customWrap = document.getElementById('fixDepositTotalCustomWrap');
+  const customInput = document.getElementById('fixDepositTotalCustomInput');
+  if(!sel) return;
+
+  // Restore saved value into the control on load.
+  const saved = STATE.fixDepositTotal;
+  const presetValues = ['500','1000','1500','2000','2500','3000'];
+  if(saved && presetValues.includes(String(saved))){
+    sel.value = String(saved);
+    if(customWrap) customWrap.style.display = 'none';
+  }else if(saved){
+    sel.value = 'custom';
+    if(customWrap) customWrap.style.display = 'block';
+    if(customInput) customInput.value = saved;
+  }
+
+  sel.addEventListener('change', () => {
+    if(sel.value === 'custom'){
+      if(customWrap) customWrap.style.display = 'block';
+      STATE.fixDepositTotal = customInput ? customInput.value : '';
+    }else{
+      if(customWrap) customWrap.style.display = 'none';
+      STATE.fixDepositTotal = sel.value;
+    }
+    saveState();
+    renderDashFixDeposit();
+  });
+
+  if(customInput){
+    customInput.addEventListener('input', () => {
+      STATE.fixDepositTotal = customInput.value;
+      saveState();
+      renderDashFixDeposit();
+    });
+  }
+}
+initFixDepositTotalControls();
+
+/* ------------------------------------------------------------
+   Dashboard — Notes Fees panel: one row per student, pulled live
+   from STATE.deposit. Notes Fees is a free-typed amount per row,
+   summed per student; each bar fills relative to the selected
+   "Total Notes Fees per student" amount (STATE.notesFeesTotal) —
+   how much of the full fee that student has paid so far. Falls
+   back to relative-to-highest scaling if no total is selected yet.
+   ------------------------------------------------------------ */
+function renderDashNotesFees(){
+  const emptyState = document.getElementById('dashNotesFeesEmpty');
+  const listWrap = document.getElementById('dashNotesFeesList');
+  if(!listWrap) return;
+
+  const { byStudent, order } = groupDepositRowsByStudent();
+  if(order.length === 0){
+    if(emptyState) emptyState.style.display = 'block';
+    listWrap.innerHTML = '';
+    return;
+  }
+  if(emptyState) emptyState.style.display = 'none';
+
+  const total = parseFloat(STATE.notesFeesTotal);
+  const hasTotal = !isNaN(total) && total > 0;
+  const maxNotes = Math.max(0, ...order.map(key => byStudent[key].notesSum));
+
+  let html = '';
+  order.forEach(key => {
+    const s = byStudent[key];
+    let pct;
+    if(hasTotal){
+      pct = Math.min(100, Math.round((s.notesSum / total) * 100));
+    }else{
+      pct = maxNotes > 0 ? Math.round((s.notesSum / maxNotes) * 100) : 0;
+    }
+    const notesDisplay = s.notesSum > 0 ? s.notesSum.toLocaleString() : '—';
+    const labelRight = hasTotal
+      ? `Rs. ${notesDisplay} / Rs. ${total.toLocaleString()} (${pct}%)`
+      : `Rs. ${notesDisplay}`;
+    const rowClass = pct === 0 ? 'row-zero' : (pct >= 75 ? 'row-paid' : 'row-amber');
+    html += `<div class="fee-track-row ${rowClass}">
+      <div>
+        <div class="fee-track-name">${escapeHtml(s.name)}</div>
+        ${s.roll ? `<div class="fee-track-roll">Roll: ${escapeHtml(s.roll)}</div>` : ''}
+      </div>
+      <div class="fee-track-bar-wrap">
+        <div class="fee-track-bar-track">
+          <div class="fee-track-bar-fill${pct === 0 ? ' zero' : ''}" style="width:${pct}%;"></div>
+        </div>
+        <div class="fee-track-bar-label">
+          <span>Notes Fees</span>
+          <span>${labelRight}</span>
+        </div>
+      </div>
+      <div class="fee-track-notes">${notesDisplay}<span class="lbl">Notes Fees</span></div>
+    </div>`;
+  });
+
+  listWrap.innerHTML = html;
+}
+
+/* ---- Total Notes Fees selector — dropdown (with a Custom option) ---- */
+function initNotesFeesTotalControls(){
+  const sel = document.getElementById('notesFeesTotalSelect');
+  const customWrap = document.getElementById('notesFeesTotalCustomWrap');
+  const customInput = document.getElementById('notesFeesTotalCustomInput');
+  if(!sel) return;
+
+  // Restore saved value into the control on load.
+  const saved = STATE.notesFeesTotal;
+  const presetValues = ['500','1000','1500','2000','2500','3000'];
+  if(saved && presetValues.includes(String(saved))){
+    sel.value = String(saved);
+    if(customWrap) customWrap.style.display = 'none';
+  }else if(saved){
+    sel.value = 'custom';
+    if(customWrap) customWrap.style.display = 'block';
+    if(customInput) customInput.value = saved;
+  }
+
+  sel.addEventListener('change', () => {
+    if(sel.value === 'custom'){
+      if(customWrap) customWrap.style.display = 'block';
+      STATE.notesFeesTotal = customInput ? customInput.value : '';
+    }else{
+      if(customWrap) customWrap.style.display = 'none';
+      STATE.notesFeesTotal = sel.value;
+    }
+    saveState();
+    renderDashNotesFees();
+  });
+
+  if(customInput){
+    customInput.addEventListener('input', () => {
+      STATE.notesFeesTotal = customInput.value;
+      saveState();
+      renderDashNotesFees();
+    });
+  }
+}
+initNotesFeesTotalControls();
+
 /* ---------- CSV / PDF export for any recorded month ---------- */
 function buildMonthDataset(month){
   const rows = [];
@@ -10033,8 +11394,18 @@ async function init(){
   seedDefaultStudentsData(); // one-time: load in the admission-form data if the table has never been filled
   seedDefaultFund(); // one-time: pre-fill the Fund Account ledger with 50 blank rows if it's never been filled
   seedDefaultDeposit(); // one-time: pre-fill the Deposit Record if it's never been filled
+  seedDemoMarksForKnownStudents(); // one-time: sample marks + notes fees for the 7 known students, if not already recorded
+  collapseDuplicateDefaultDepositRows(); // one-time: merge old duplicate blank deposit rows down to 1 per known student
   migrateMarksToHistory();
   updateActiveMonthPills();
+  refreshDashboardDropdown();
+  renderDashStudentProgress();
+  renderDashOverallAvg();
+  renderDashboard();
+  renderDashCompare();
+  renderDashCourseProgress();
+  renderDashFixDeposit();
+  renderDashNotesFees();
   renderStudentList();
   renderSubjectList();
   refreshMarksDropdowns();
