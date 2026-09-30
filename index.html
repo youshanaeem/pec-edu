@@ -1080,6 +1080,65 @@ html[data-theme="dark"] .login-card{
   border-color:rgba(134,161,255,.35);
   box-shadow:0 25px 60px rgba(0,0,0,.45);
 }
+
+/* ============================================================
+   Today's Classes — layout fix
+   The card used to be position:fixed and floated over the panel
+   cards (overlapping "Campus Incharge" etc.). It now lives in the
+   page flow instead, so it can never cover anything:
+     • wide screens (≥1080px): sits in its own column to the right
+       of the panels and stays visible while scrolling (sticky)
+     • tablets / phones: shown as a normal full-width card above
+       the panels
+   ============================================================ */
+.home-layout{
+  display:flex;
+  flex-direction:column;
+  align-items:stretch;
+  width:100%;
+  max-width:1640px;
+  margin:0 auto;
+}
+.home-layout > .home-shell{
+  width:100%;
+  min-width:0;
+  margin:0 auto;
+}
+.home-layout > .today-classes-card{
+  position:static;
+  top:auto; right:auto;
+  width:auto;
+  max-width:none;
+  margin:20px 22px 0;
+  box-sizing:border-box;
+  z-index:1;
+}
+.home-layout > .today-classes-card .today-classes-list{ max-height:240px; }
+
+@media(max-width:720px){
+  .home-layout > .today-classes-card{ margin:16px 14px 0; padding:14px; }
+}
+@media(min-width:1080px){
+  .home-layout{
+    flex-direction:row;
+    align-items:flex-start;
+    justify-content:center;
+  }
+  .home-layout > .home-shell{
+    flex:1 1 0;
+    width:auto;
+    margin:0;
+  }
+  .home-layout > .today-classes-card{
+    order:2;
+    position:sticky;
+    top:calc(var(--topbar-h) + 16px);
+    flex:0 0 300px;
+    width:300px;
+    margin:48px 24px 0 0;
+  }
+  .home-layout > .today-classes-card .today-classes-list{ max-height:calc(100vh - var(--topbar-h) - 120px); }
+}
 </style>
 </head>
 <body>
@@ -1153,6 +1212,7 @@ html[data-theme="dark"] .login-card{
   </button>
 </header>
 
+<div class="home-layout">
 <div class="today-classes-card" id="todayClassesCard">
   <h4><span class="live-clock-dot"></span>Today's Classes —<span class="day-name" id="todayClassesDayName">—</span></h4>
   <div id="todayClassesBody">
@@ -1223,6 +1283,7 @@ html[data-theme="dark"] .login-card{
 
   <p class="footer-note">PEC (Progressive Education Centre) · Shaping the Leaders of Tomorrow.</p>
 </div>
+</div><!-- /.home-layout -->
 </div><!-- /#appContent -->
 
 <div id="panelPassOverlay" class="panel-pass-overlay">
