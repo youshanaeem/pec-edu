@@ -4794,6 +4794,26 @@ function saveState(){
   }, 500);
 }
 
+// Immediate save: writes localStorage AND waits for the server (DB) PUT to
+// finish. Used before location.reload() so the debounced saveState() can't be
+// cancelled by the reload (which made old marks come back from the DB).
+async function saveStateNow(){
+  clearTimeout(_saveTimer);
+  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(STATE)); }catch(e){ console.error('Local data save error:', e); }
+  try{
+    const res = await fetch('/api/state', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': APP_API_KEY },
+      body: JSON.stringify(STATE)
+    });
+    if(!res.ok) throw new Error('API responded with ' + res.status);
+    return true;
+  }catch(e){
+    console.error('DB save error:', e);
+    return false;
+  }
+}
+
 function uid(prefix){
   return prefix + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2,7);
 }
@@ -5170,11 +5190,11 @@ document.getElementById('resetAllDataBtn').addEventListener('click', function(){
   STATE.courseBreakupMeta = {cls:'', year:''};
   STATE.classRatings = [];
 
-  try{ localStorage.removeItem(STORAGE_KEY); }catch(e){ console.error('Clear error:', e); }
-  saveState();
-
-  alert('All data has been removed. You can now import a fresh CSV file.');
-  location.reload();
+  saveStateNow().then(function(ok){
+    if(!ok) alert('Warning: server par save nahi ho saka (internet/API issue). Data sirf is browser se delete hua hai — internet check karke dobara try karein.');
+    else alert('All data has been removed. You can now import a fresh CSV file.');
+    location.reload();
+  });
 });
 
 /* ------------------------------------------------------------
@@ -5226,10 +5246,11 @@ document.getElementById('resetMarksOnlyBtn').addEventListener('click', function(
   STATE.marksHistoryMigrated = false;
   STATE.activeMonth = currentCalendarMonth();
 
-  saveState();
-
-  alert('All marks data has been removed. Students and everything else are untouched — you can start entering fresh marks now.');
-  location.reload();
+  saveStateNow().then(function(ok){
+    if(!ok) alert('Warning: server par save nahi ho saka (internet/API issue). Marks sirf is browser se delete hue hain — internet check karke dobara try karein.');
+    else alert('All marks data has been removed. Students and everything else are untouched — you can start entering fresh marks now.');
+    location.reload();
+  });
 });
 
 /* ============================================================
