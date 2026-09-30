@@ -2532,7 +2532,13 @@ html[data-theme="dark"] ::selection{
     <div id="dash-studentprogress" class="dash-panel dash-panel-full">
       <div class="card">
         <h3><span class="dot"></span>Students — <span id="dashStuMonthLabel">Current Month</span> Progress</h3>
-        <p class="section-sub" style="margin-bottom:16px;">Every student, with a small ring chart showing their own current-month percentage (the percentage itself sits inside the ring).</p>
+        <p class="section-sub" style="margin-bottom:12px;">Every student, with a small ring chart showing their own percentage for the selected month (the percentage itself sits inside the ring).</p>
+        <div class="dash-compare-toolbar" style="margin-bottom:16px;">
+          <div class="select-wrap" style="max-width:260px;">
+            <label for="dashStuMonthSelect">Show month</label>
+            <select id="dashStuMonthSelect"><option value="">No month recorded yet</option></select>
+          </div>
+        </div>
 
         <div id="dashStuEmptyState" class="empty-state" style="display:none;">
           <div class="big">No marks recorded yet</div>
@@ -2568,6 +2574,12 @@ html[data-theme="dark"] ::selection{
       </div>
       <div id="dashOverviewCard" class="card dash-hero-card">
         <h3><span class="dot"></span>Class Average — <span id="dashMonthLabel">Current Month</span></h3>
+        <div class="dash-compare-toolbar" style="margin-bottom:16px;">
+          <div class="select-wrap" style="max-width:260px;">
+            <label for="dashClassAvgMonthSelect">Show month</label>
+            <select id="dashClassAvgMonthSelect"><option value="">No month recorded yet</option></select>
+          </div>
+        </div>
         <div class="grid-2">
           <div class="ring-wrap dash-ring-glow">
             <canvas id="dashRingChart" height="0" style="display: block; box-sizing: border-box; height: 0px; width: 0px;" width="0"></canvas>
@@ -2608,7 +2620,11 @@ html[data-theme="dark"] ::selection{
         <div class="dash-compare-toolbar">
           <div class="dash-stat-icon" style="--tile-accent:var(--amber); --tile-accent-soft:var(--amber-soft);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
           <div class="select-wrap">
-            <label for="dashCompareSelect">Compare this month</label>
+            <label for="dashCompareBaseSelect">This month</label>
+            <select id="dashCompareBaseSelect"><option value="">No month recorded yet</option></select>
+          </div>
+          <div class="select-wrap">
+            <label for="dashCompareSelect">Compare with (previous month)</label>
             <select id="dashCompareSelect"><option value="">No other month recorded yet</option></select>
           </div>
         </div>
@@ -4794,6 +4810,26 @@ function saveState(){
   }, 500);
 }
 
+// Immediate save: writes localStorage AND waits for the server (DB) PUT to
+// finish. Used before location.reload() so the debounced saveState() can't be
+// cancelled by the reload (which made old marks come back from the DB).
+async function saveStateNow(){
+  clearTimeout(_saveTimer);
+  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(STATE)); }catch(e){ console.error('Local data save error:', e); }
+  try{
+    const res = await fetch('/api/state', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': APP_API_KEY },
+      body: JSON.stringify(STATE)
+    });
+    if(!res.ok) throw new Error('API responded with ' + res.status);
+    return true;
+  }catch(e){
+    console.error('DB save error:', e);
+    return false;
+  }
+}
+
 function uid(prefix){
   return prefix + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2,7);
 }
@@ -5170,11 +5206,11 @@ document.getElementById('resetAllDataBtn').addEventListener('click', function(){
   STATE.courseBreakupMeta = {cls:'', year:''};
   STATE.classRatings = [];
 
-  try{ localStorage.removeItem(STORAGE_KEY); }catch(e){ console.error('Clear error:', e); }
-  saveState();
-
-  alert('All data has been removed. You can now import a fresh CSV file.');
-  location.reload();
+  saveStateNow().then(function(ok){
+    if(!ok) alert('Warning: server par save nahi ho saka (internet/API issue). Data sirf is browser se delete hua hai — internet check karke dobara try karein.');
+    else alert('All data has been removed. You can now import a fresh CSV file.');
+    location.reload();
+  });
 });
 
 /* ------------------------------------------------------------
@@ -5226,10 +5262,11 @@ document.getElementById('resetMarksOnlyBtn').addEventListener('click', function(
   STATE.marksHistoryMigrated = false;
   STATE.activeMonth = currentCalendarMonth();
 
-  saveState();
-
-  alert('All marks data has been removed. Students and everything else are untouched — you can start entering fresh marks now.');
-  location.reload();
+  saveStateNow().then(function(ok){
+    if(!ok) alert('Warning: server par save nahi ho saka (internet/API issue). Marks sirf is browser se delete hue hain — internet check karke dobara try karein.');
+    else alert('All marks data has been removed. Students and everything else are untouched — you can start entering fresh marks now.');
+    location.reload();
+  });
 });
 
 /* ============================================================
@@ -9005,17 +9042,38 @@ function drawRingChart(canvasId, pct, color){
   });
 }
 
+// Months the person has explicitly picked in the dashboard dropdowns.
+// Empty string = "not picked" -> always follows the latest recorded month.
+let dashStuSelectedMonth = '';
+let dashCompareBaseMonth = '';
+let dashClassAvgMonth = '';
+
+function effectiveMonth(picked){
+  return getMonthsWithData().includes(picked) ? picked : getCurrentMonthKey();
+}
+
+function fillMonthSelect(sel, months, wanted, emptyText){
+  if(!sel) return '';
+  sel.innerHTML = months.length
+    ? months.map(m=>`<option value="${m}">${monthLabel(m)}</option>`).join('')
+    : `<option value="">${emptyText}</option>`;
+  if(months.includes(wanted)) sel.value = wanted;
+  return sel.value;
+}
+
 function refreshDashboardDropdown(){
+  const months = getMonthsWithData();           // latest first
+
+  fillMonthSelect(document.getElementById('dashClassAvgMonthSelect'), months, effectiveMonth(dashClassAvgMonth), 'No month recorded yet');
+  fillMonthSelect(document.getElementById('dashStuMonthSelect'), months, effectiveMonth(dashStuSelectedMonth), 'No month recorded yet');
+
+  const baseMonth = effectiveMonth(dashCompareBaseMonth);
+  fillMonthSelect(document.getElementById('dashCompareBaseSelect'), months, baseMonth, 'No month recorded yet');
+
+  // "Compare with": every recorded month except the "This month" one
   const sel = document.getElementById('dashCompareSelect');
   if(!sel) return;
-  const months = getMonthsWithData();
-  const currentMonth = getCurrentMonthKey();
-  const compareOptions = months.filter(m=>m!==currentMonth);
-  const prevVal = sel.value;
-  sel.innerHTML = compareOptions.length
-    ? compareOptions.map(m=>`<option value="${m}">${monthLabel(m)}</option>`).join('')
-    : '<option value="">No other month recorded yet</option>';
-  if(compareOptions.includes(prevVal)) sel.value = prevVal;
+  fillMonthSelect(sel, months.filter(m=>m!==baseMonth), sel.value, 'No other month recorded yet');
 }
 
 /* ------------------------------------------------------------
@@ -9035,7 +9093,8 @@ function renderDashStudentProgress(){
   const grid = document.getElementById('dashStuGrid');
   if(!grid) return;
 
-  const currentMonth = getCurrentMonthKey();
+  const months = getMonthsWithData();
+  const currentMonth = effectiveMonth(dashStuSelectedMonth);
   const monthLbl = document.getElementById('dashStuMonthLabel');
   if(monthLbl) monthLbl.textContent = currentMonth ? monthLabel(currentMonth) : 'Current Month';
 
@@ -9164,7 +9223,7 @@ function renderDashOverallAvg(){
 function renderDashboard(){
   const emptyState = document.getElementById('dashEmptyState');
   const content = document.getElementById('dashOverviewCard');
-  const currentMonth = getCurrentMonthKey();
+  const currentMonth = effectiveMonth(dashClassAvgMonth);
   const result = getClassAveragePercent(currentMonth);
 
   if(!currentMonth || !result){
@@ -9196,11 +9255,12 @@ function renderDashboard(){
 }
 
 function renderDashCompare(){
-  const currentMonth = getCurrentMonthKey();
+  const _months = getMonthsWithData();
+  const currentMonth = effectiveMonth(dashCompareBaseMonth);
   const sel = document.getElementById('dashCompareSelect');
   const compareMonth = sel ? sel.value : '';
 
-  document.getElementById('dashRingCurrentLabel').textContent = currentMonth ? monthLabel(currentMonth) + ' (Current)' : 'Current Month';
+  document.getElementById('dashRingCurrentLabel').textContent = currentMonth ? monthLabel(currentMonth) : 'This Month';
   document.getElementById('dashRingCompareLabel').textContent = compareMonth ? monthLabel(compareMonth) : 'Previous Month';
 
   const curResult = currentMonth ? getClassAveragePercent(currentMonth) : null;
@@ -9242,6 +9302,25 @@ function renderDashCompare(){
 
 const dashCompareSelectEl = document.getElementById('dashCompareSelect');
 if(dashCompareSelectEl) dashCompareSelectEl.addEventListener('change', renderDashCompare);
+
+const dashCompareBaseEl = document.getElementById('dashCompareBaseSelect');
+if(dashCompareBaseEl) dashCompareBaseEl.addEventListener('change', function(){
+  dashCompareBaseMonth = this.value;
+  refreshDashboardDropdown();   // rebuild "Compare with" so it never lists the same month
+  renderDashCompare();
+});
+
+const dashClassAvgEl = document.getElementById('dashClassAvgMonthSelect');
+if(dashClassAvgEl) dashClassAvgEl.addEventListener('change', function(){
+  dashClassAvgMonth = this.value;
+  renderDashboard();
+});
+
+const dashStuMonthEl = document.getElementById('dashStuMonthSelect');
+if(dashStuMonthEl) dashStuMonthEl.addEventListener('change', function(){
+  dashStuSelectedMonth = this.value;
+  renderDashStudentProgress();
+});
 
 /* ---------- Dashboard: Course Progress ring (per selected subject) ----------
    Pulls straight from the same STATE.courseProgress / Course Breakup data and
