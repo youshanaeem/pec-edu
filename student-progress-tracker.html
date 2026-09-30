@@ -4641,7 +4641,7 @@ let STATE = {
   subjects: [],     // {id, name, teacher, max, teacherJunior, teacherSenior}
   marks: [],        // {id, studentId, subjectId, prev, current}
   attendance: [],   // {id, studentId, date, status: 'present'|'absent'|'leave'|'late'}
-  marksHistory: [], // {id, studentId, subjectId, month:'YYYY-MM', value}
+  marksHistory: [], // {id, studentId, subjectId, month:'YYYY-MM', value, max}
   marksHistoryMigrated: false, // one-time flag: have we copied old prev/current marks into marksHistory?
   activeMonth: currentCalendarMonth(), // 'YYYY-MM' — the month currently being recorded into Current/marks. Only advances via the "Start New Month" button, so entering marks never silently overwrites an unarchived month.
   courseProgress: [], // {subjectId, completed, inprogress, total} — chapter-wise progress per subject
@@ -5040,7 +5040,7 @@ function seedDemoMarksForKnownStudents(){
           const already = STATE.marksHistory.some(h => h.studentId === stu.id && h.subjectId === sub.id && h.month === month);
           if(!already){
             const value = Math.floor(55 + Math.random() * 40); // sample score, 55–95 out of 100
-            STATE.marksHistory.push({id: uid('mh'), studentId: stu.id, subjectId: sub.id, month, value});
+            STATE.marksHistory.push({id: uid('mh'), studentId: stu.id, subjectId: sub.id, month, value, max: subjectDefaultMax(sub.id)});
             changed = true;
           }
         });
@@ -5867,6 +5867,7 @@ function importCsvToMonth(rows, month, slot){
   if(!hasStudentCol) return { error:'Could not find a "Student Name" column. Please check the format and try again.' };
 
   let studentsAdded = 0, subjectsAdded = 0, marksAdded = 0;
+  freezeMaxValues(); // lock older months' max before this import can touch a subject's default max
 
   if(hasSubjectCol){
     // ---- TALL FORMAT (original): one row per student per subject ----
@@ -5879,22 +5880,24 @@ function importCsvToMonth(rows, month, slot){
       const roll=get('roll')||'—'; const cls=get('cls')||'—';
       const subjectName=get('subject'); if(!subjectName) continue;
       const teacherJunior=get('teacherJunior'); const teacherSenior=get('teacherSenior');
-      const max=get('max')?(parseFloat(get('max'))||100):100;
+      const maxRawT=get('max');
       const valRaw=slot==='current'?get('current'):get('prev');
       if(valRaw==='') continue;
       const value=parseFloat(valRaw); if(isNaN(value)) continue;
       let stu=STATE.students.find(s=>s.name.toLowerCase()===name.toLowerCase()&&s.roll===roll);
       if(!stu){stu={id:uid('stu'),name,roll,cls,photo:''};STATE.students.push(stu);studentsAdded++;}
       let sub=STATE.subjects.find(s=>s.name.toLowerCase()===subjectName.toLowerCase());
+      // Max: use the file's Max column if present, otherwise the subject's current default (never a hard-coded guess)
+      const max=validMax(maxRawT)||(sub?subjectDefaultMax(sub.id):100);
       if(!sub){sub={id:uid('sub'),name:subjectName,teacher:'—',max,teacherJunior:teacherJunior||'',teacherSenior:teacherSenior||''};STATE.subjects.push(sub);subjectsAdded++;}
-      else{if(teacherJunior)sub.teacherJunior=teacherJunior;if(teacherSenior)sub.teacherSenior=teacherSenior;}
+      else{if(teacherJunior)sub.teacherJunior=teacherJunior;if(teacherSenior)sub.teacherSenior=teacherSenior;if(slot==='current'&&validMax(maxRawT))sub.max=max;}
       let mark=STATE.marks.find(m=>m.studentId===stu.id&&m.subjectId===sub.id);
       if(!mark){mark={id:uid('mk'),studentId:stu.id,subjectId:sub.id,prev:null,current:null,maxPrev:null,maxCurrent:null};STATE.marks.push(mark);}
       mark[slot]=value;
       if(slot==='current'){ mark.maxCurrent=max; } else { mark.maxPrev=max; }
       let entry=STATE.marksHistory.find(h=>h.studentId===stu.id&&h.subjectId===sub.id&&h.month===month);
-      if(!entry){entry={id:uid('mh'),studentId:stu.id,subjectId:sub.id,month,value};STATE.marksHistory.push(entry);}
-      else entry.value=value;
+      if(!entry){entry={id:uid('mh'),studentId:stu.id,subjectId:sub.id,month,value,max};STATE.marksHistory.push(entry);}
+      else{entry.value=value;entry.max=max;}
       marksAdded++;
     }
   } else {
@@ -5942,12 +5945,13 @@ function importCsvToMonth(rows, month, slot){
         const valRaw=getIdx(cols.obtainedIdx); if(valRaw==='') continue;
         const value=parseFloat(valRaw); if(isNaN(value)) continue;
         const maxRaw=getIdx(cols.maxIdx);
-        const max=maxRaw?(parseFloat(maxRaw)||100):100;
         const jr=getIdx(cols.jrIdx); const sr=getIdx(cols.srIdx);
 
         let sub=STATE.subjects.find(s=>s.name.toLowerCase()===subjectName.toLowerCase());
+        // Max: use the file's Max column if present, otherwise the subject's current default (never a hard-coded guess)
+        const max=validMax(maxRaw)||(sub?subjectDefaultMax(sub.id):100);
         if(!sub){sub={id:uid('sub'),name:subjectName,teacher:'—',max,teacherJunior:jr,teacherSenior:sr};STATE.subjects.push(sub);subjectsAdded++;}
-        else{sub.max=max;if(jr)sub.teacherJunior=jr;if(sr)sub.teacherSenior=sr;}
+        else{if(slot==='current'&&validMax(maxRaw))sub.max=max;if(jr)sub.teacherJunior=jr;if(sr)sub.teacherSenior=sr;}
 
         let mark=STATE.marks.find(m=>m.studentId===stu.id&&m.subjectId===sub.id);
         if(!mark){mark={id:uid('mk'),studentId:stu.id,subjectId:sub.id,prev:null,current:null,maxPrev:null,maxCurrent:null};STATE.marks.push(mark);}
@@ -5955,8 +5959,8 @@ function importCsvToMonth(rows, month, slot){
         if(slot==='current'){ mark.maxCurrent=max; } else { mark.maxPrev=max; }
 
         let entry=STATE.marksHistory.find(h=>h.studentId===stu.id&&h.subjectId===sub.id&&h.month===month);
-        if(!entry){entry={id:uid('mh'),studentId:stu.id,subjectId:sub.id,month,value};STATE.marksHistory.push(entry);}
-        else entry.value=value;
+        if(!entry){entry={id:uid('mh'),studentId:stu.id,subjectId:sub.id,month,value,max};STATE.marksHistory.push(entry);}
+        else{entry.value=value;entry.max=max;}
         marksAdded++;
       }
     }
@@ -6413,6 +6417,18 @@ function renderMarksTable(){
     const h = STATE.marksHistory.find(x=>x.studentId===studentId && x.subjectId===subjectId && x.month===selectedMonth);
     return h ? h.value : null;
   };
+  const historyMaxFor = (studentId, subjectId) => {
+    const h = STATE.marksHistory.find(x=>x.studentId===studentId && x.subjectId===subjectId && x.month===selectedMonth);
+    return h ? getHistoryMax(h) : subjectDefaultMax(subjectId);
+  };
+  // Max for one student's cell in the month being viewed
+  const cellMaxFor = (studentId, subjectId) => {
+    if(isActiveMonth){
+      const mk = STATE.marks.find(m=>m.studentId===studentId && m.subjectId===subjectId);
+      return mk ? getMarkMax(mk,'current') : subjectDefaultMax(subjectId);
+    }
+    return historyMaxFor(studentId, subjectId);
+  };
   const hasDataFor = (studentId, subjectId) =>
     isActiveMonth
       ? STATE.marks.some(m=>m.studentId===studentId && m.subjectId===subjectId && m.current!=null)
@@ -6442,7 +6458,9 @@ function renderMarksTable(){
   html += '<th rowspan="2" style="vertical-align:middle;">Student</th>';
   html += '<th rowspan="2" style="vertical-align:middle;">Roll</th>';
   subjects.forEach(sub=>{
-    html += `<th colspan="2" style="text-align:center; border-bottom:1px solid var(--line);">${escapeHtml(sub.name)}<br><span style="font-size:10px;font-weight:400;color:var(--muted);">(Total: ${sub.max})</span></th>`;
+    const _maxes = Array.from(new Set(STATE.students.filter(stu=>hasDataFor(stu.id, sub.id)).map(stu=>cellMaxFor(stu.id, sub.id))));
+    const _maxLabel = _maxes.length ? _maxes.join(' / ') : String(subjectDefaultMax(sub.id));
+    html += `<th colspan="2" style="text-align:center; border-bottom:1px solid var(--line);">${escapeHtml(sub.name)}<br><span style="font-size:10px;font-weight:400;color:var(--muted);">(Total: ${_maxLabel})</span></th>`;
   });
   html += '<th rowspan="2" style="vertical-align:middle; text-align:center;">Grand<br>Total</th>';
   html += '<th rowspan="2" style="vertical-align:middle; text-align:center;">%</th>';
@@ -6468,14 +6486,13 @@ function renderMarksTable(){
     const cellsHtml = subjects.map(sub=>{
       const mark = stuMarks.find(m=>m.subjectId===sub.id);
       const cur = isActiveMonth ? (mark ? (mark.current ?? null) : null) : historyValue(stu.id, sub.id);
-      const maxVal = sub.max || 0;
+      const maxVal = cellMaxFor(stu.id, sub.id);
 
+      // Only subjects that actually have a mark count toward the grand total / %
       if(cur !== null){
         grandObtained += cur;
         grandMax += maxVal;
         allBlank = false;
-      } else {
-        grandMax += maxVal;
       }
 
       if(effectiveEditMode){
@@ -6486,7 +6503,9 @@ function renderMarksTable(){
       const obtainedCell = cur !== null
         ? `<td class="num-cell" style="text-align:center;">${cur}</td>`
         : `<td class="num-cell" style="text-align:center;color:var(--muted);">—</td>`;
-      const maxCell = `<td style="text-align:center;color:var(--muted);font-size:12px;">${maxVal}</td>`;
+      const maxCell = isActiveMonth
+        ? `<td style="text-align:center;color:var(--muted);font-size:12px;">${maxVal}</td>`
+        : `<td class="hist-max-edit" data-subject="${sub.id}" title="Click to correct this month's max marks for ${escapeHtml(sub.name)}" style="text-align:center;color:var(--muted);font-size:12px;cursor:pointer;text-decoration:underline dotted;">${maxVal}</td>`;
       return obtainedCell + maxCell;
     }).join('');
 
@@ -6522,6 +6541,31 @@ function renderMarksTable(){
   html += '</p>';
 
   wrap.innerHTML = html;
+
+  // Past months are locked, except the Max column: click a max to correct that
+  // subject's total marks for the month being viewed (applies to the whole class).
+  wrap.querySelectorAll('td.hist-max-edit').forEach(td=>{
+    td.addEventListener('click', ()=>{
+      const sub = STATE.subjects.find(s=>s.id===td.dataset.subject);
+      if(!sub) return;
+      const input = prompt(monthLabel(selectedMonth) + ' — ' + sub.name + ': total (max) marks of this month\'s paper?\n\nThis changes the max for every student of this subject in this month only.', td.textContent.trim());
+      if(input===null) return;
+      const n = validMax(input);
+      if(n==null){ alert('Please enter a number greater than 0.'); return; }
+      STATE.marksHistory.forEach(h=>{ if(h.subjectId===sub.id && h.month===selectedMonth) h.max = n; });
+      const prevKey = shiftMonthKey(STATE.activeMonth || currentCalendarMonth(), -1);
+      if(selectedMonth===prevKey){
+        STATE.marks.forEach(m=>{ if(m.subjectId===sub.id && m.prev!=null) m.maxPrev = n; });
+      }
+      saveState();
+      renderMarksTable();
+      renderReport();
+      renderRanking();
+      renderOverview();
+      if(typeof renderDashboard==='function') renderDashboard();
+      if(typeof renderDashOverallAvg==='function') renderDashOverallAvg();
+    });
+  });
 
   if(!effectiveEditMode) return; // locked — nothing below is interactive until Edit is clicked (and only available on the active month)
 
@@ -6566,12 +6610,21 @@ function renderMarksTable(){
       const val = td.textContent.trim();
       const sub = STATE.subjects.find(s=>s.id===td.dataset.subject);
       if(!sub) return;
-      sub.max = val==='' ? 100 : (parseFloat(val)||100);
+      const newMax = validMax(val);
+      if(newMax==null){ renderMarksTable(); return; }
+      // Lock every earlier month at the max it had, THEN change this month.
+      freezeMaxValues();
+      sub.max = newMax; // becomes the default for future months
+      const _month = STATE.activeMonth || currentCalendarMonth();
+      STATE.marks.forEach(m=>{ if(m.subjectId===sub.id) m.maxCurrent = newMax; });
+      STATE.marksHistory.forEach(h=>{ if(h.subjectId===sub.id && h.month===_month) h.max = newMax; });
       saveState();
       renderMarksTable();
       renderReport();
       renderRanking();
       renderOverview();
+      if(typeof renderDashboard==='function') renderDashboard();
+      if(typeof renderDashOverallAvg==='function') renderDashOverallAvg();
     });
   });
   wrap.querySelectorAll('.marks-del-row').forEach(btn=>{
@@ -8345,14 +8398,15 @@ function renderReport(){
   const studentMarks = STATE.marks.filter(m=>m.studentId===studentId);
 
   // ---- Report card head ----
-  const totalCurrent = studentMarks.reduce((sum,m)=> sum + (m.current||0), 0);
-  const totalPrev = studentMarks.reduce((sum,m)=> sum + (m.prev||0), 0);
-  const totalMax = studentMarks.reduce((sum,m)=>{
-    const sub = STATE.subjects.find(s=>s.id===m.subjectId);
-    return sum + (sub ? sub.max : 0);
-  }, 0);
-  const avgPct = totalMax>0 ? ((totalCurrent/totalMax)*100).toFixed(1) : '—';
-  const avgPrevPct = totalMax>0 ? ((totalPrev/totalMax)*100).toFixed(1) : '—';
+  // Only subjects that actually have a mark count, each against ITS OWN max
+  // for that month (current and previous can have different maxes).
+  let totalCurrent = 0, totalCurMax = 0, totalPrev = 0, totalPrevMax = 0;
+  studentMarks.forEach(m=>{
+    if(m.current!=null){ totalCurrent += m.current; totalCurMax += getMarkMax(m,'current'); }
+    if(m.prev!=null){ totalPrev += m.prev; totalPrevMax += getMarkMax(m,'prev'); }
+  });
+  const avgPct = totalCurMax>0 ? ((totalCurrent/totalCurMax)*100).toFixed(1) : '—';
+  const avgPrevPct = totalPrevMax>0 ? ((totalPrev/totalPrevMax)*100).toFixed(1) : '—';
 
   const photoHtml = stu.photo
     ? `<img class="report-photo" src="${stu.photo}" alt="${escapeHtml(stu.name)}">`
@@ -8490,8 +8544,8 @@ function renderReport(){
       const prev = m ? (m.prev ?? null) : null;
       const cur = m ? (m.current ?? null) : null;
       const teacherName = sub.teacherJunior || '—';
-      const prevTotal = m && m.maxPrev!=null ? m.maxPrev : sub.max;
-      const curTotal = m && m.maxCurrent!=null ? m.maxCurrent : sub.max;
+      const prevTotal = m ? getMarkMax(m,'prev') : subjectDefaultMax(sub.id);
+      const curTotal = m ? getMarkMax(m,'current') : subjectDefaultMax(sub.id);
       const pct = cur!=null ? ((cur/curTotal)*100).toFixed(1)+'%' : '—';
 
       if(reportEditMode){
@@ -8535,8 +8589,12 @@ function renderReport(){
       td.addEventListener('blur', ()=>{
         const val = td.textContent.trim();
         const mark = getOrCreateMark(studentId, td.dataset.subject);
-        mark.maxPrev = val==='' ? null : (parseFloat(val)||0);
+        mark.maxPrev = validMax(val);
+        const _pm = shiftMonthKey(STATE.activeMonth || currentCalendarMonth(), -1);
+        const _he = STATE.marksHistory.find(h=>h.studentId===mark.studentId && h.subjectId===mark.subjectId && h.month===_pm);
+        if(_he && validMax(mark.maxPrev)) _he.max = mark.maxPrev;
         saveState();
+        renderOverview();
         renderReport();
       });
     });
@@ -8557,9 +8615,12 @@ function renderReport(){
       td.addEventListener('blur', ()=>{
         const val = td.textContent.trim();
         const mark = getOrCreateMark(studentId, td.dataset.subject);
-        mark.maxCurrent = val==='' ? null : (parseFloat(val)||0);
+        mark.maxCurrent = validMax(val);
+        if(mark.current!=null) syncMarkCurrentToHistory(mark);
         saveState();
         renderReport();
+        renderRanking();
+        renderOverview();
         renderMarksTable();
       });
     });
@@ -8587,10 +8648,7 @@ function renderRanking(){
   const results = STATE.students.map(stu=>{
     const marksForStu = STATE.marks.filter(m=>m.studentId===stu.id && m.current!=null);
     const total = marksForStu.reduce((sum,m)=> sum + m.current, 0);
-    const totalMax = marksForStu.reduce((sum,m)=>{
-      const sub = STATE.subjects.find(s=>s.id===m.subjectId);
-      return sum + (sub ? sub.max : 0);
-    }, 0);
+    const totalMax = marksForStu.reduce((sum,m)=> sum + getMarkMax(m,'current'), 0);
     const avgPct = totalMax>0 ? (total/totalMax)*100 : 0;
     return { stu, total, avgPct, hasData: marksForStu.length>0 };
   }).filter(r=>r.hasData)
@@ -8687,6 +8745,35 @@ function shiftMonthKey(m, delta){
   return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
 }
 
+// ---- Per-month "Max Marks" helpers ----------------------------------
+// Every month's paper can have a different total, so each stored mark now
+// remembers its OWN max (history entry .max, mark.maxCurrent, mark.maxPrev).
+// The subject's sub.max is only the default suggested for a new month.
+function validMax(v){ const n = parseFloat(v); return (isFinite(n) && n>0) ? n : null; }
+function subjectDefaultMax(subjectId){
+  const sub = STATE.subjects.find(s=>s.id===subjectId);
+  return sub ? (validMax(sub.max) || 100) : 100;
+}
+function getHistoryMax(h){ return (h && validMax(h.max)) || subjectDefaultMax(h && h.subjectId); }
+function getMarkMax(mark, slot){
+  if(!mark) return 100;
+  const own = validMax(slot==='prev' ? mark.maxPrev : mark.maxCurrent);
+  return own || subjectDefaultMax(mark.subjectId);
+}
+// Locks in the max that applies to every already-recorded mark so that
+// changing a subject's default max later can never rewrite old months.
+function freezeMaxValues(){
+  let changed = false;
+  STATE.marksHistory.forEach(h=>{
+    if(validMax(h.max)==null){ h.max = subjectDefaultMax(h.subjectId); changed = true; }
+  });
+  STATE.marks.forEach(m=>{
+    if(m.prev!=null && validMax(m.maxPrev)==null){ m.maxPrev = subjectDefaultMax(m.subjectId); changed = true; }
+    if(m.current!=null && validMax(m.maxCurrent)==null){ m.maxCurrent = subjectDefaultMax(m.subjectId); changed = true; }
+  });
+  return changed;
+}
+
 // One-time migration: if marks were already added via the Subjects & Marks
 // CSV import (prev/current columns) before this month-wise Overview import
 // existed, copy them into marksHistory so Monthly Overview shows charts
@@ -8702,13 +8789,13 @@ function migrateMarksToHistory(){
     if(mk.current!=null && !isNaN(mk.current)){
       const exists = STATE.marksHistory.find(h=>h.studentId===mk.studentId && h.subjectId===mk.subjectId && h.month===curMonth);
       if(!exists){
-        STATE.marksHistory.push({ id: uid('mh'), studentId: mk.studentId, subjectId: mk.subjectId, month: curMonth, value: mk.current });
+        STATE.marksHistory.push({ id: uid('mh'), studentId: mk.studentId, subjectId: mk.subjectId, month: curMonth, value: mk.current, max: getMarkMax(mk,'current') });
       }
     }
     if(mk.prev!=null && !isNaN(mk.prev)){
       const exists = STATE.marksHistory.find(h=>h.studentId===mk.studentId && h.subjectId===mk.subjectId && h.month===prevMonth);
       if(!exists){
-        STATE.marksHistory.push({ id: uid('mh'), studentId: mk.studentId, subjectId: mk.subjectId, month: prevMonth, value: mk.prev });
+        STATE.marksHistory.push({ id: uid('mh'), studentId: mk.studentId, subjectId: mk.subjectId, month: prevMonth, value: mk.prev, max: getMarkMax(mk,'prev') });
       }
     }
   });
@@ -8726,10 +8813,13 @@ function syncMarkCurrentToHistory(mark){
   if(!mark || mark.current==null || isNaN(mark.current)) return;
   const month = STATE.activeMonth || currentCalendarMonth();
   let entry = STATE.marksHistory.find(h=>h.studentId===mark.studentId && h.subjectId===mark.subjectId && h.month===month);
+  const mx = getMarkMax(mark,'current');
+  if(validMax(mark.maxCurrent)==null) mark.maxCurrent = mx; // lock this month's max on the mark itself
   if(entry){
     entry.value = mark.current;
+    entry.max = mx;
   }else{
-    STATE.marksHistory.push({ id: uid('mh'), studentId: mark.studentId, subjectId: mark.subjectId, month, value: mark.current });
+    STATE.marksHistory.push({ id: uid('mh'), studentId: mark.studentId, subjectId: mark.subjectId, month, value: mark.current, max: mx });
   }
 }
 
@@ -8796,7 +8886,7 @@ function getStudentMonthPercent(studentId, month){
   let total=0, totalMax=0;
   entries.forEach(h=>{
     const sub = STATE.subjects.find(s=>s.id===h.subjectId);
-    if(sub){ total += h.value; totalMax += sub.max; }
+    if(sub){ total += h.value; totalMax += getHistoryMax(h); }
   });
   return totalMax>0 ? (total/totalMax)*100 : null;
 }
@@ -9673,8 +9763,8 @@ function buildMonthDataset(month){
         rows.push({
           student: stu.name, roll: stu.roll, cls: stu.cls,
           subject: sub.name, teacher: sub.teacher,
-          marks: h.value, max: sub.max,
-          pct: ((h.value/sub.max)*100).toFixed(1)
+          marks: h.value, max: getHistoryMax(h),
+          pct: ((h.value/getHistoryMax(h))*100).toFixed(1)
         });
       }
     });
@@ -9696,9 +9786,8 @@ function buildMarksProgressDataset(){
     const cells = subjects.map(sub=>{
       const mark = stuMarks.find(m=>m.subjectId===sub.id);
       const cur = mark ? (mark.current ?? null) : null;
-      const maxVal = sub.max || 0;
-      grandMax += maxVal;
-      if(cur !== null){ grandObtained += cur; allBlank = false; }
+      const maxVal = mark ? getMarkMax(mark,'current') : subjectDefaultMax(sub.id);
+      if(cur !== null){ grandObtained += cur; grandMax += maxVal; allBlank = false; }
       return {obtained: cur !== null ? cur : '', max: maxVal};
     });
     return {
@@ -9747,7 +9836,7 @@ document.getElementById('marksDownloadPdfBtn').addEventListener('click', ()=>{
   const logoTag = logoSrc ? `<img src="${logoSrc}" alt="logo" style="height:56px;width:56px;object-fit:contain;filter:grayscale(1) brightness(0);">` : '';
   let html = `<div style="display:flex; align-items:center; gap:14px; margin-bottom:4px;">${logoTag}<div><h2 style="margin:0;">Subjects &amp; Marks — Progress</h2><p style="margin:2px 0 0;">${metaLine}</p></div></div>`;
   html += '<table><thead><tr><th>Student</th><th>Roll</th>';
-  subjects.forEach(sub=>{ html += `<th colspan="2">${escapeHtml(sub.name)} (Total: ${sub.max})</th>`; });
+  subjects.forEach(sub=>{ html += `<th colspan="2">${escapeHtml(sub.name)}</th>`; });
   html += '<th>Grand Total</th><th>%</th></tr><tr><th></th><th></th>';
   subjects.forEach(()=>{ html += '<th>Obtained</th><th>Max</th>'; });
   html += '<th></th><th></th></tr></thead><tbody>';
@@ -12097,6 +12186,7 @@ async function init(){
   seedDemoMarksForKnownStudents(); // one-time: sample marks + notes fees for the 7 known students, if not already recorded
   collapseDuplicateDefaultDepositRows(); // one-time: merge old duplicate blank deposit rows down to 1 per known student
   migrateMarksToHistory();
+  if(freezeMaxValues()) saveState(); // one-time: pin every existing mark to the max it was recorded with
   updateActiveMonthPills();
   refreshDashboardDropdown();
   renderDashStudentProgress();
